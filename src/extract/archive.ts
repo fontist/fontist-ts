@@ -1,6 +1,7 @@
 import { promises as fsp } from 'node:fs';
 import { FontExtractError } from '../errors/errors.js';
 import { ExtractorRegistry } from './extractor.js';
+import { ProcessExtractor } from './processExtractor.js';
 import { TarExtractor } from './tarExtractor.js';
 import { ZipExtractor } from './zipExtractor.js';
 
@@ -74,5 +75,26 @@ async function readLeadingBytes(filePath: string): Promise<Uint8Array | null> {
 }
 
 export function defaultRegistry(): ExtractorRegistry {
-  return new ExtractorRegistry().register(new ZipExtractor()).register(new TarExtractor());
+  return new ExtractorRegistry()
+    .register(new ZipExtractor())
+    .register(new TarExtractor())
+    // Containers only 7-Zip can handle; registration order matters so the
+    // pure-JS extractors keep first claim on zip/tar-gzip signatures.
+    .register(new ProcessExtractor('7z', (b) => matchBytes(b, [0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c])))
+    .register(new ProcessExtractor('cab', (b) => asciiAt(b, 0, 'MSCF')))
+    .register(new ProcessExtractor('msi', (b) => matchBytes(b, [0xd0, 0xcf, 0x11, 0xe0])))
+    .register(new ProcessExtractor('exe-sfx', (b) => matchBytes(b, [0x4d, 0x5a])));
+}
+
+function matchBytes(bytes: Uint8Array, magic: number[]): boolean {
+  if (bytes.length < magic.length) return false;
+  return magic.every((byte, index) => bytes[index] === byte);
+}
+
+function asciiAt(bytes: Uint8Array, offset: number, text: string): boolean {
+  if (bytes.length < offset + text.length) return false;
+  for (let i = 0; i < text.length; i++) {
+    if (bytes[offset + i] !== text.charCodeAt(i)) return false;
+  }
+  return true;
 }

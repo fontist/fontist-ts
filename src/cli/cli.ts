@@ -11,6 +11,7 @@ import { DownloadCache } from '../download/downloadCache.js';
 import { InvalidConfigAttributeError } from '../errors/errors.js';
 import { FormatSpec, parseVariableAxes } from '../formula/formatSpec.js';
 import { FormulaRepository } from '../formula/formulaRepository.js';
+import { Fontconfig } from '../fontconfig/fontconfig.js';
 import { FormulaIndexRegistry } from '../index/formula/formulaFontIndex.js';
 import { FormulasRepo } from '../repo/formulasRepo.js';
 import { PrivateRepos } from '../repo/privateRepos.js';
@@ -182,10 +183,7 @@ program
     .action(async (font: string | undefined, flags: CliFlags) => {
       await withContext(flags, async (ctx) => {
         const paths = await Font.status(font ?? null, ctx);
-        if (font) {
-          ctx.ui.say('Fonts found at:');
-          for (const fontPath of paths) ctx.ui.say(fontPath);
-        } else {
+        if (!font) {
           for (const fontPath of paths) ctx.ui.say(fontPath);
         }
       });
@@ -217,6 +215,26 @@ program
       await withContext(flags, async (ctx) => {
         try {
           await updateFormulas(ctx);
+        } catch (err) {
+          reportError(ctx, err as Error, flags);
+          process.exitCode = exitCodeFor(err as Error) ?? 1;
+        }
+      });
+    });
+
+program
+    .command('fontconfig')
+    .description('Fontconfig integration')
+    .argument('<action>', 'update')
+    .action(async (action: string, flags: CliFlags) => {
+      await withContext(flags, async (ctx) => {
+        try {
+          if (action !== 'update') {
+            ctx.ui.error(`Unknown fontconfig action: ${action} (use update)`);
+            process.exitCode = 1;
+            return;
+          }
+          await new Fontconfig(ctx).update();
         } catch (err) {
           reportError(ctx, err as Error, flags);
           process.exitCode = exitCodeFor(err as Error) ?? 1;

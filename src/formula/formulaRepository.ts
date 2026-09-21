@@ -2,17 +2,24 @@ import { promises as fsp } from 'node:fs';
 import * as path from 'node:path';
 import type { FontistContext } from '../context.js';
 import { FormulaNotFoundError } from '../errors/errors.js';
+import { mapWithConcurrency } from '../util/concurrency.js';
 import { Formula, keyFromPath, titleize } from './formula.js';
+
+const FORMULA_PARSE_CONCURRENCY = 8;
 
 export interface FormulaRepositoryOptions {
   /** Overrides the Formulas root (tests, private repos). */
   root?: string;
 }
 
-/** Lookup service over the installed formulas directory. */
+/** Lookup service over the installed formulas directory. Parsed formulas are
+ * memoized per instance (invalidate after repo updates) and parsed with
+ * bounded concurrency. */
 export class FormulaRepository {
   private readonly ctx: FontistContext;
   private readonly rootOverride: string | undefined;
+  private cache: Promise<Formula[]> | null = null;
+  private keysCache: Promise<string[]> | null = null;
 
   constructor(ctx: FontistContext, options: FormulaRepositoryOptions = {}) {
     this.ctx = ctx;
@@ -25,15 +32,32 @@ export class FormulaRepository {
     return this.rootOverride ?? this.ctx.paths.formulasPath();
   }
 
+  /** Drops the memoized formula list (call after repo updates). */
+  invalidate(): void {
+    this.cache = null;
+    this.keysCache = null;
+  }
+
   async all(): Promise<Formula[]> {
-    const files = await this.formulaFiles(this.root());
-    const formulas = await Promise.all(files.map((file) => this.fromFile(file)));
-    return formulas.filter((f): f is Formula => f !== null);
+    if (!this.cache) {
+      this.cache = this.parseAll();
+    }
+    return this.cache;
   }
 
   async allKeys(): Promise<string[]> {
+    if (!this.keysCache) {
+      this.keysCache = this.formulaFiles(this.root()).then((files) =>
+        files.map((file) => keyFromPath(file, this.root())),
+      );
+    }
+    return this.keysCache;
+  }
+
+  private async parseAll(): Promise<Formula[]> {
     const files = await this.formulaFiles(this.root());
-    return files.map((file) => keyFromPath(file, this.root()));
+    const formulas = await mapWithConcurrency(files, FORMULA_PARSE_CONCURRENCY, (file) => this.fromFile(file));
+    return formulas.filter((f): f is Formula => f !== null);
   }
 
   async fromFile(formulaPath: string): Promise<Formula | null> {

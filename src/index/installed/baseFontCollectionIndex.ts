@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import type { FontistContext } from '../../context.js';
 import { FontFile } from '../../fonts/fontFile.js';
 import type { FormatMatcher } from '../../formula/formatMatcher.js';
+import { mapWithConcurrency } from '../../util/concurrency.js';
 import type {
   SystemIndexFontCollection} from './systemIndexFont.js';
 import {
@@ -11,6 +12,21 @@ import {
   saveCollection,
   SystemIndexFont
 } from './systemIndexFont.js';
+
+const FONT_PARSE_CONCURRENCY = 8;
+
+async function collectStats(paths: string[]): Promise<Map<string, { size: number; mtimeMs: number }>> {
+  const result = new Map<string, { size: number; mtimeMs: number }>();
+  await Promise.all(
+    paths.map(async (fontPath) => {
+      const stats = await fsp.stat(fontPath).catch(() => null);
+      if (stats) {
+        result.set(fontPath, { size: stats.size, mtimeMs: Math.floor(stats.mtimeMs) });
+      }
+    }),
+  );
+  return result;
+}
 
 /** Shared behavior of installed-font indexes: persistent scan collection,
  * lazy build, mtime short-circuit, add/remove, find. Concrete subclasses
@@ -66,27 +82,31 @@ export abstract class BaseFontCollectionIndex {
       return;
     }
     const previousByPath = new Map(collection.all().map((font) => [font.data.path, font.data]));
-    const fonts: SystemIndexFont[] = [];
-    for (const fontPath of paths) {
-      const stats = await fsp.stat(fontPath).catch(() => null);
-      if (!stats) continue;
+    const statsByPath = await collectStats(paths);
+    const fonts = await mapWithConcurrency(paths, FONT_PARSE_CONCURRENCY, async (fontPath) => {
+      const stats = statsByPath.get(fontPath);
+      if (!stats) return null;
       const previous = previousByPath.get(fontPath);
       if (
         !options.forced &&
         previous &&
         previous.file_size === stats.size &&
-        previous.file_mtime === Math.floor(stats.mtimeMs)
+        previous.file_mtime === stats.mtimeMs
       ) {
-        fonts.push(new SystemIndexFont(previous));
-        continue;
+        return new SystemIndexFont(previous);
       }
       try {
-        fonts.push(await this.parseFont(fontPath, stats.size, Math.floor(stats.mtimeMs)));
+        return await this.parseFont(fontPath, stats.size, stats.mtimeMs);
       } catch (err) {
         this.ctx.ui.debug(`Skipping unreadable font ${fontPath}: ${String(err)}`);
+        return null;
       }
-    }
-    collection.replaceAll(fonts, Date.now(), await collectDirectoryMtimes(directories));
+    });
+    collection.replaceAll(
+      fonts.filter((font): font is SystemIndexFont => font !== null),
+      Date.now(),
+      await collectDirectoryMtimes(directories),
+    );
     await saveCollection(this.indexPath(), collection);
   }
 

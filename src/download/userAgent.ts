@@ -56,13 +56,41 @@ export function browserHeaders(profile: BrowserProfile): Record<string, string> 
   };
 }
 
-/** Rewrites raw GitHub download URLs to authenticated API URLs when a token
- * is available (raises rate limits). */
-export function githubApiUrl(rawUrl: string, token: string | null): string {
-  const match = rawUrl.match(
-    /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/releases\/download\/(.+)$/,
-  );
-  if (!match || !token) return rawUrl;
-  const [, owner, repo, rest] = match;
-  return `https://api.github.com/repos/${owner}/${repo}/releases/assets/${rest}?access_token=${token}`;
+export const GITHUB_DOWNLOAD_URL = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/releases\/download\/([^/]+)\/(.+)$/;
+
+export interface GithubUrlResolver {
+  /** Returns the resolved URL + headers, or null to pass the raw URL through. */
+  resolve(rawUrl: string): Promise<{ url: string; headers: Record<string, string> } | null>;
+}
+
+/** Resolves raw GitHub release-download URLs to authenticated API asset
+ * URLs (the assets API requires the numeric asset id and an octet-stream
+ * Accept header). Returns null when the URL is not a GitHub release
+ * download or no token is available (raw URL passthrough). */
+export class ApiGithubUrlResolver {
+  constructor(
+    private readonly token: string | null,
+    private readonly apiBase = 'https://api.github.com',
+  ) {}
+
+  async resolve(rawUrl: string): Promise<{ url: string; headers: Record<string, string> } | null> {
+    const match = rawUrl.match(GITHUB_DOWNLOAD_URL);
+    if (!match || !this.token) return null;
+    const [, owner, repo, tag, assetName] = match;
+    try {
+      const response = await fetch(`${this.apiBase}/repos/${owner}/${repo}/releases/tags/${tag}`, {
+        headers: { Authorization: `Bearer ${this.token}`, Accept: 'application/vnd.github+json' },
+      });
+      if (!response.ok) return null;
+      const release = (await response.json()) as { assets?: { id: number; name: string }[] };
+      const asset = release.assets?.find((a) => a.name === assetName);
+      if (!asset) return null;
+      return {
+        url: `${this.apiBase}/repos/${owner}/${repo}/releases/assets/${asset.id}`,
+        headers: { Accept: 'application/octet-stream', Authorization: `Bearer ${this.token}` },
+      };
+    } catch {
+      return null;
+    }
+  }
 }

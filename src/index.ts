@@ -56,6 +56,9 @@ export { FontFile, type FontFileInfo } from './fonts/fontFile.js';
 export { detectFormat, type FontBinaryFormat } from './fonts/sfnt/magic.js';
 export { SfntFont } from './fonts/sfnt/sfntFont.js';
 export { SfntCollection } from './fonts/sfnt/collection.js';
+export { assembleSfnt } from './fonts/sfnt/assemble.js';
+export { encodeWoff1, loadWoff1, type WoffTable } from './fonts/woff/woff1.js';
+export { decodeWoff2, encodeWoff2, loadWoff2 } from './fonts/woff/woff2.js';
 
 export {
   createInstallLocation,

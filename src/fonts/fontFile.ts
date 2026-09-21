@@ -1,11 +1,12 @@
 import { promises as fsp } from 'node:fs';
 import * as path from 'node:path';
-import { inflateSync } from 'node:zlib';
 import { FontFileError } from '../errors/errors.js';
 import type { UI } from '../ui/ui.js';
 import { detectFormat, type FontBinaryFormat } from './sfnt/magic.js';
 import { SfntCollection } from './sfnt/collection.js';
 import { SfntFont } from './sfnt/sfntFont.js';
+import { loadWoff1 } from './woff/woff1.js';
+import { loadWoff2 } from './woff/woff2.js';
 
 export interface FontFileInfo {
   format: FontBinaryFormat;
@@ -21,11 +22,9 @@ export interface FontFileInfo {
   collectionIndex: number | null;
 }
 
-const WOFF_TABLE_DIR_OFFSET = 44;
-const WOFF_TABLE_ENTRY_SIZE = 20;
-
-/** Facade over the SFNT parsers: loads a font file (or one face of a
- * collection) and exposes the metadata Fontist needs. */
+/** Facade over the font parsers: loads a font file (or one face of a
+ * collection) and exposes the metadata Fontist needs. WOFF/WOFF2 are
+ * decoded for indexing; collections read one face at a time. */
 export class FontFile {
   private constructor(private readonly info: FontFileInfo) {}
 
@@ -65,14 +64,8 @@ export class FontFile {
       return new FontFile(buildInfo(detected, face, index));
     }
 
-    if (detected === 'woff2') {
-      throw new FontFileError(
-        `WOFF2 metadata parsing is not supported yet: ${label} ` +
-          '(desktop formats are fully indexed; web formats are matched by filename)',
-      );
-    }
-
-    const font = detected === 'woff' ? loadWoff1(bytes) : new SfntFont(bytes);
+    const font =
+      detected === 'woff' ? loadWoff1(bytes) : detected === 'woff2' ? loadWoff2(bytes) : new SfntFont(bytes);
     return new FontFile(buildInfo(detected, font, null));
   }
 
@@ -138,79 +131,4 @@ function buildInfo(
 
 export function isFontExtension(extension: string): boolean {
   return ['ttf', 'otf', 'ttc', 'otc', 'dfont', 'woff', 'woff2'].includes(extension.toLowerCase());
-}
-
-interface WoffTable {
-  tag: string;
-  checksum: number;
-  data: Buffer;
-}
-
-/** WOFF 1.0 reader: inflates tables and reassembles a plain SFNT font. */
-function loadWoff1(bytes: Uint8Array): SfntFont {
-  if (bytes.length < WOFF_TABLE_DIR_OFFSET) {
-    throw new FontFileError('WOFF header is truncated');
-  }
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const numTables = view.getUint16(12);
-  const tables: WoffTable[] = [];
-  for (let i = 0; i < numTables; i++) {
-    const base = WOFF_TABLE_DIR_OFFSET + i * WOFF_TABLE_ENTRY_SIZE;
-    if (base + WOFF_TABLE_ENTRY_SIZE > bytes.length) {
-      throw new FontFileError('WOFF table directory is truncated');
-    }
-    const tag = String.fromCharCode(
-      bytes[base]!,
-      bytes[base + 1]!,
-      bytes[base + 2]!,
-      bytes[base + 3]!,
-    );
-    const offset = view.getUint32(base + 4);
-    const compLength = view.getUint32(base + 8);
-    const origLength = view.getUint32(base + 12);
-    const checksum = view.getUint32(base + 16);
-    const compressed = bytes.subarray(offset, offset + compLength);
-    tables.push({ tag, checksum, data: inflateWoffTable(compressed, origLength) });
-  }
-  return new SfntFont(assembleSfnt(tables));
-}
-
-function inflateWoffTable(compressed: Uint8Array, origLength: number): Buffer {
-  if (compressed.length >= origLength) {
-    return Buffer.from(compressed.subarray(0, origLength));
-  }
-  const inflated = inflateSync(compressed);
-  if (inflated.length !== origLength) {
-    throw new FontFileError('WOFF table size mismatch after inflation');
-  }
-  return inflated;
-}
-
-function assembleSfnt(tables: WoffTable[]): Buffer {
-  const numTables = tables.length;
-  const entrySelector = Math.floor(Math.log2(numTables));
-  const searchRange = 2 ** entrySelector * 16;
-  const header = Buffer.alloc(12);
-  header.writeUInt32BE(0x00010000, 0);
-  header.writeUInt16BE(numTables, 4);
-  header.writeUInt16BE(searchRange, 6);
-  header.writeUInt16BE(entrySelector, 8);
-  header.writeUInt16BE(numTables * 16 - searchRange, 10);
-
-  const sorted = [...tables].sort((a, b) => (a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : 0));
-  const directory = Buffer.alloc(numTables * 16);
-  const chunks: Buffer[] = [header, directory];
-  let cursor = header.length + directory.length;
-  sorted.forEach((table, i) => {
-    const record = i * 16;
-    directory.write(table.tag, record, 'ascii');
-    directory.writeUInt32BE(table.checksum, record + 4);
-    directory.writeUInt32BE(cursor, record + 8);
-    directory.writeUInt32BE(table.data.length, record + 12);
-    chunks.push(table.data);
-    const padding = (4 - (table.data.length % 4)) % 4;
-    if (padding > 0) chunks.push(Buffer.alloc(padding));
-    cursor += table.data.length + padding;
-  });
-  return Buffer.concat(chunks);
 }

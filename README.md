@@ -42,6 +42,7 @@ fontist list                                # formula -> font -> style status
 fontist update                              # update formulas + rebuild indexes
 fontist manifest locations manifest.yml     # locate fonts in a manifest
 fontist manifest install manifest.yml       # install fonts from a manifest
+fontist fontconfig update                   # refresh fontconfig cache
 fontist repo setup NAME URL                 # private formulas repositories
 fontist config set no_progress true
 fontist cache clear
@@ -49,6 +50,15 @@ fontist cache clear
 
 Fonts with a required license agreement display the license text and ask for
 confirmation; pass `--accept-all-licenses` to accept non-interactively.
+
+### Font formats
+
+Desktop formats (ttf, otf, ttc, dfont) and web formats (woff, woff2) are
+understood throughout: woff/woff2 files are indexed like desktop fonts, and
+`--format woff2` / `--format woff` transcodes plain TTF/OTF fonts to web
+formats during install (the transcode re-packages the font's own tables —
+no quality change). Archives: zip, tar/gzip natively; 7z, cab, msi and
+SFX executables through a system 7-Zip binary (`7z`/`7zz`) when available.
 
 ## Library API
 
@@ -105,10 +115,10 @@ macOS supplementary (MobileAsset) fonts install into their
 
 The behavior, formula schema (v4/v5), file layout (`~/.fontist/versions/v5/...`)
 and CLI surface mirror the Ruby gem; both can share a `~/.fontist` directory.
-Known gaps (tracked in `TODO.impl/`): WOFF2 metadata indexing and transcoding
-desktop→web formats (23/22), Windows Font-on-Demand payloads (21), and native
-codecs for 7z/cab/msi archives (23) — these raise clear errors instead of
-failing silently.
+Remaining gaps are tracked in `TODO.impl/`: the full macOS MobileAsset catalog
+discovery used by the import tooling, and WOFF2 table transforms (the decoder
+reads metadata tables and the encoder writes null transforms — both validated
+against fontTools).
 
 ## Development
 

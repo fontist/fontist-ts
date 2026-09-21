@@ -86,6 +86,28 @@ describe('FormulaRepository', () => {
     }
   });
 
+  it('memoizes all() per instance until invalidated', async () => {
+    const env = await envWithFormulas();
+    try {
+      const repo = new FormulaRepository(env.ctx);
+      const first = await repo.all();
+      const second = await repo.all();
+      expect(second).toBe(first); // same memoized array
+      await writeFormula(env, 'late_arrival', {
+        name: 'Late',
+        fonts: [{ name: 'Late', styles: [{ family_name: 'Late', type: 'Regular', font: 'Late.ttf' }] }],
+        resources: { 'l.zip': { urls: ['https://example.com/l.zip'] } },
+      });
+      expect(await repo.all()).toHaveLength(2); // still memoized
+      repo.invalidate();
+      const refreshed = await repo.all();
+      expect(refreshed).toHaveLength(3);
+      expect((await repo.allKeys()).sort()).toContain('late_arrival');
+    } finally {
+      await cleanup(env);
+    }
+  });
+
   it('warns and skips unparseable formulas', async () => {
     const env = await envWithFormulas();
     try {
