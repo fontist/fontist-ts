@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-      - run: apt-get update && sudo apt-get install -y p7zip-full git
+      - run: sudo apt-get update && sudo apt-get install -y p7zip-full
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
