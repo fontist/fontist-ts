@@ -4,7 +4,6 @@ import type { Resource } from '../formula/models.js';
 import {
   InvalidResourceError,
   UnsupportedMacOSVersionError,
-  WindowsFodInstallError,
 } from '../errors/errors.js';
 import { Archive } from '../extract/archive.js';
 import { Downloader } from '../download/downloader.js';
@@ -100,13 +99,19 @@ export class AppleCdnResourceInstaller extends ResourceInstaller {
   }
 }
 
-/** Windows Font-on-Demand resource: payload assembly is not supported yet. */
+/** Windows Font-on-Demand resource: downloads the FOD payload and extracts
+ * it like any other archive (cab payloads need the 7-Zip extractor). */
 export class WindowsFodResourceInstaller extends ResourceInstaller {
-  async files(_sourceNames: string[], _onFile: (filePath: string) => Promise<void>): Promise<void> {
-    throw new WindowsFodInstallError(
-      'Windows Font-on-Demand resources require the FOD payload pipeline, ' +
-        'which is not available in this release (see TODO.impl/21-resource-sources.md).',
-    );
+  async files(sourceNames: string[], onFile: (filePath: string) => Promise<void>): Promise<void> {
+    const archivePath = await this.download(this.resource.urls, this.resource.sha256, this.resource.fileSize);
+    const archive = new Archive();
+    const tmpDir = `${archivePath}-extracted`;
+    const extracted = await archive.extractAll(archivePath, tmpDir, { recursivePackages: true });
+    for (const file of extracted) {
+      if (sourceNames.length === 0 || sourceNames.includes(path.basename(file))) {
+        await onFile(file);
+      }
+    }
   }
 }
 

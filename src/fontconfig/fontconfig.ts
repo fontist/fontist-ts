@@ -11,15 +11,15 @@ export class Fontconfig {
     this.ctx = ctx;
   }
 
-  static async isAvailable(): Promise<boolean> {
-    return (await whichFcCache()) !== null;
+  static async isAvailable(ctx: FontistContext): Promise<boolean> {
+    return (await whichFcCache(ctx)) !== null;
   }
 
   /** Refreshes the fontconfig cache; raises FontconfigNotFoundError when
    * fc-cache is missing, FontconfigFileNotFoundError when fonts.conf is
    * missing, and BinaryCallError when fc-cache fails. */
   async update(): Promise<void> {
-    const fcCache = await whichFcCache();
+    const fcCache = await whichFcCache(this.ctx);
     if (!fcCache) {
       throw new FontconfigNotFoundError(
         'fc-cache not found. Install fontconfig (e.g. `brew install fontconfig`) ' +
@@ -55,8 +55,8 @@ export class Fontconfig {
   }
 }
 
-async function whichFcCache(): Promise<string | null> {
-  const paths = (process.env.PATH ?? '').split(path.delimiter);
+async function whichFcCache(ctx: FontistContext): Promise<string | null> {
+  const paths = (ctx.env.PATH ?? '').split(path.delimiter);
   for (const dir of paths) {
     if (dir.length === 0) continue;
     const candidate = path.join(dir, 'fc-cache');

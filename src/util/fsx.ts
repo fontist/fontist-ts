@@ -60,22 +60,6 @@ export async function sha256File(filePath: string): Promise<string> {
   return hash.digest('hex');
 }
 
-export function basename(p: string): string {
-  return path.basename(p);
-}
-
-export function extname(p: string): string {
-  return path.extname(p);
-}
-
-export function joinPath(...parts: string[]): string {
-  return path.join(...parts);
-}
-
-/** Normalizes separators and trailing slashes for cross-platform comparisons. */
-export function normalizePath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/\/+$/, '');
-}
 
 export async function listSubdirectories(dir: string): Promise<string[]> {
   try {

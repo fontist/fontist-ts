@@ -12,7 +12,7 @@ export interface VariableAxis {
 export class SfntFont {
   private data: Uint8Array;
   private view: DataView;
-  private tables: Map<string, { offset: number; length: number }> | null = null;
+  private tableCache: Map<string, { offset: number; length: number }> | null = null;
   private names: NameRecord[] | null = null;
   private axes: VariableAxis[] | null = null;
 
@@ -22,10 +22,10 @@ export class SfntFont {
   }
 
   private tableEntries(): Map<string, { offset: number; length: number }> {
-    if (this.tables) return this.tables;
+    if (this.tableCache) return this.tableCache;
     const tables = new Map<string, { offset: number; length: number }>();
     if (this.data.length < 12) {
-      this.tables = tables;
+      this.tableCache = tables;
       return tables;
     }
     const numTables = this.view.getUint16(4);
@@ -44,7 +44,7 @@ export class SfntFont {
         tables.set(tag, { offset, length });
       }
     }
-    this.tables = tables;
+    this.tableCache = tables;
     return tables;
   }
 
@@ -124,6 +124,19 @@ export class SfntFont {
       });
     }
     return this.axes;
+  }
+
+  /** Raw table bodies in directory order (for encoders and re-packers). */
+  tables(): { tag: string; data: Buffer }[] {
+    return Array.from(this.tableEntries().entries()).map(([tag, entry]) => ({
+      tag,
+      data: Buffer.from(this.data.subarray(entry.offset, entry.offset + entry.length)),
+    }));
+  }
+
+  /** The sfnt version tag (0x00010000 for TrueType, 'OTTO' for CFF). */
+  flavor(): number {
+    return this.view.getUint32(0);
   }
 
   /** Validates that the binary is a readable font with at least a family name. */

@@ -9,7 +9,17 @@ import {
   TimeoutError,
 } from '../errors/errors.js';
 import { DownloadCache } from './downloadCache.js';
-import { browserHeaders, githubApiUrl, randomBrowserProfile } from './userAgent.js';
+import {
+  ApiGithubUrlResolver,
+  browserHeaders,
+  randomBrowserProfile,
+  type GithubUrlResolver,
+} from './userAgent.js';
+
+export interface ResolvedDownloadUrl {
+  url: string;
+  headers: Record<string, string>;
+}
 
 export interface DownloadOptions {
   /** Accepted sha256 digests; when set, the downloaded file must match one. */
@@ -33,10 +43,16 @@ const MAX_ATTEMPTS = 3;
 export class Downloader {
   private readonly ctx: FontistContext;
   private readonly cache: DownloadCache;
+  private readonly urlResolver: GithubUrlResolver;
 
-  constructor(ctx: FontistContext, cache: DownloadCache | null = null) {
+  constructor(
+    ctx: FontistContext,
+    cache: DownloadCache | null = null,
+    urlResolver: GithubUrlResolver | null = null,
+  ) {
     this.ctx = ctx;
     this.cache = cache ?? new DownloadCache(ctx);
+    this.urlResolver = urlResolver ?? new ApiGithubUrlResolver(ctx.env.GITHUB_API_TOKEN ?? null);
   }
 
   get downloadCache(): DownloadCache {
@@ -117,12 +133,13 @@ export class Downloader {
     targetPath: string,
     options: DownloadOptions,
   ): Promise<void> {
-    const token = this.ctx.env.GITHUB_API_TOKEN ?? null;
-    const url = githubApiUrl(rawUrl, token);
-    const headers: Record<string, string> = {
-      ...browserHeaders(randomBrowserProfile()),
-      ...(token !== null && url !== rawUrl ? { Authorization: `Bearer ${token}` } : {}),
-    };
+    let url = rawUrl;
+    const headers: Record<string, string> = browserHeaders(randomBrowserProfile());
+    const resolved = await this.urlResolver.resolve(rawUrl);
+    if (resolved) {
+      url = resolved.url;
+      Object.assign(headers, resolved.headers);
+    }
     const openTimeout = this.ctx.config.get('open_timeout') ?? 60;
     const readTimeout = this.ctx.config.get('read_timeout') ?? 60;
 
