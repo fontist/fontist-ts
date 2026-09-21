@@ -1,0 +1,63 @@
+{
+  "name": "fontist",
+  "version": "1.0.0-alpha.1",
+  "description": "Install openly-licensed fonts. TypeScript port of the Fontist gem, driven by fontist formulas.",
+  "license": "BSD-2-Clause",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./cli": "./dist/cli/cli.js"
+  },
+  "bin": {
+    "fontist": "./dist/cli/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fontist/fontist-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fontist/fontist/issues"
+  },
+  "homepage": "https://github.com/fontist/fontist-ts",
+  "keywords": [
+    "font",
+    "fonts",
+    "fontist",
+    "install",
+    "formula",
+    "typography"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src spec",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "tar": "^7.4.3",
+    "yauzl": "^3.2.0",
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/yauzl": "^2.10.3",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^2.1.8"
+  }
+}
