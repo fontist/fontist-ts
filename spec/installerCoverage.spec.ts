@@ -1,3 +1,4 @@
+// Mirrors fontist/resources/google_resource_spec.rb, fontist/resources/apple_cdn_resource_spec.rb, fontist/resources/windows_fod_resource_spec.rb (Ruby gem): representative coverage.
 import { createServer, type Server } from 'node:http';
 import { promises as fsp } from 'node:fs';
 import * as path from 'node:path';

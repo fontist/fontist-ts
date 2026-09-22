@@ -1,3 +1,4 @@
+// Mirrors fontist/cli_spec.rb, fontist/cache_cli_spec.rb, fontist/config_cli_spec.rb, fontist/repo_cli_spec.rb (Ruby gem): representative coverage.
 import { createServer, type Server } from 'node:http';
 import { promises as fsp } from 'node:fs';
 import * as path from 'node:path';

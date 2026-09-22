@@ -1,3 +1,4 @@
+// Mirrors fontist/font_file_validation_spec.rb, fontist/utils/file_magic_spec.rb (Ruby gem): representative coverage.
 import { describe, expect, it } from 'vitest';
 import { FontFile } from '../src/fonts/fontFile.js';
 import { detectFormat } from '../src/fonts/sfnt/magic.js';

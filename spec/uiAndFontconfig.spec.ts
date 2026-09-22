@@ -1,3 +1,4 @@
+// Mirrors fontist/utils/ui_spec.rb, fontist/fontconfig_spec.rb, fontist/fontconfig_cli_spec.rb (Ruby gem): representative coverage.
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { promises as fsp } from 'node:fs';

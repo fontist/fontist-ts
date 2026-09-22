@@ -1,3 +1,4 @@
+// Mirrors fontist/repo_spec.rb, fontist/update_spec.rb, fontist/formula_auto_update_spec.rb (Ruby gem): representative coverage.
 import { execFile } from 'node:child_process';
 import { promises as fsp } from 'node:fs';
 import * as os from 'node:os';

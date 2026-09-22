@@ -1,3 +1,4 @@
+// Mirrors fontist/v5_integration_spec.rb (Ruby gem): representative coverage.
 import { createServer, type Server } from 'node:http';
 import { promises as fsp } from 'node:fs';
 import * as path from 'node:path';

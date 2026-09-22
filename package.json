@@ -44,7 +44,9 @@
     "lint": "eslint src spec",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepublishOnly": "npm run lint && npm run typecheck && npm run build && npm test"
+    "prepublishOnly": "npm run lint && npm run typecheck && npm run build && npm test",
+    "mirror:check": "node scripts/check-spec-mirror.mjs",
+    "test:ci": "npm run mirror:check && npm test"
   },
   "dependencies": {
     "commander": "^12.1.0",

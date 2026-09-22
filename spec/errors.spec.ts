@@ -1,3 +1,4 @@
+// Mirrors fontist/errors_spec.rb (Ruby gem): representative coverage.
 import { describe, expect, it } from 'vitest';
 import {
   FontIndexCorrupted,

@@ -1,0 +1,481 @@
+{
+  "rubySpecDir": "../fontist/spec",
+  "note": "Maps every Ruby spec file to its TypeScript mirror. mirrored = dedicated TS mirror; partial = representative coverage; not-ported = subsystem intentionally absent (reason given).",
+  "entries": {
+    "fontist_spec.rb": {
+      "status": "mirrored",
+      "ts": "spec/mirror/fontist_spec.ts",
+      "note": "package-level basics"
+    },
+    "fontist/font_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/font_spec.ts",
+      "note": "core find/install/uninstall/status/list, licensing, errors"
+    },
+    "fontist/formula_spec.rb": {
+      "status": "mirrored",
+      "ts": "spec/mirror/formula_spec.ts",
+      "note": "v5 model + platform licensing + matching"
+    },
+    "fontist/system_index_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/system_index_spec.ts",
+      "note": "corruption, magic-byte dispatch, rebuild triggers, metadata filter"
+    },
+    "fontist/system_index_font_collection_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/system_index_spec.ts",
+      "note": "collection change detection"
+    },
+    "fontist/indexes/default_family_font_index_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/formula_indexes_spec.ts",
+      "note": "default-family keying"
+    },
+    "fontist/indexes/preferred_family_font_index_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/formula_indexes_spec.ts",
+      "note": "preferred-family keying + config dispatch"
+    },
+    "fontist/indexes/filename_index_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/formula_indexes_spec.ts",
+      "note": "exact filename keying"
+    },
+    "fontist/indexes/fontist_index_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/installed_indexes_spec.ts",
+      "note": "fontist scope"
+    },
+    "fontist/indexes/user_index_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/installed_indexes_spec.ts",
+      "note": "user scope"
+    },
+    "fontist/indexes/system_index_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/installed_indexes_spec.ts",
+      "note": "system scope"
+    },
+    "fontist/install_locations/base_location_spec.rb": {
+      "status": "mirrored",
+      "ts": "spec/mirror/install_locations_spec.ts",
+      "note": "base contract"
+    },
+    "fontist/install_locations/fontist_location_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/install_locations_spec.ts",
+      "note": "fontist location"
+    },
+    "fontist/install_locations/system_location_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/install_locations_spec.ts",
+      "note": "system location"
+    },
+    "fontist/install_locations/user_location_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/install_locations_spec.ts",
+      "note": "user location"
+    },
+    "fontist/font_installer_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/font_installer_spec.ts",
+      "note": "pipeline gates + file matching"
+    },
+    "fontist/font_finder_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/font_finder_spec.ts",
+      "note": "finder over formulas"
+    },
+    "fontist/font_license_confirmation_spec.rb": {
+      "status": "mirrored",
+      "ts": "spec/mirror/font_license_confirmation_spec.ts",
+      "note": "confirmation flows"
+    },
+    "fontist/font_model_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/formula_models_spec.ts",
+      "note": "font/style models"
+    },
+    "fontist/font_style_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/formula_models_spec.ts",
+      "note": "style attributes"
+    },
+    "fontist/font_collection_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/formula_models_spec.ts",
+      "note": "collection fonts"
+    },
+    "fontist/manifest_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/manifest_spec.ts",
+      "note": "locate/install/errors"
+    },
+    "fontist/format_matcher_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/format_matcher_spec.ts",
+      "note": "resource/style/indexed matching"
+    },
+    "fontist/format_spec_spec.rb": {
+      "status": "mirrored",
+      "ts": "spec/mirror/format_spec_spec.ts",
+      "note": "constraints parsing"
+    },
+    "fontist/formula_picker_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/formula_picker_spec.ts",
+      "note": "version/size/newest/smallest/min_fontist"
+    },
+    "fontist/formula_suggestion_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/formula_suggestion_spec.ts",
+      "note": "fuzzy ranking"
+    },
+    "fontist/path_scanning_spec.rb": {
+      "status": "mirrored",
+      "ts": "spec/mirror/path_scanning_spec.ts",
+      "note": "directory scanning"
+    },
+    "fontist/system_font_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/system_font_spec.ts",
+      "note": "find/find_styles"
+    },
+    "fontist/config_spec.rb": {
+      "status": "partial",
+      "ts": "spec/config.spec.ts",
+      "note": "existing suite"
+    },
+    "fontist/errors_spec.rb": {
+      "status": "partial",
+      "ts": "spec/errors.spec.ts",
+      "note": "existing suite"
+    },
+    "fontist/utils/downloader_spec.rb": {
+      "status": "partial",
+      "ts": "spec/download.spec.ts",
+      "note": "existing suite"
+    },
+    "fontist/utils/user_agent_spec.rb": {
+      "status": "partial",
+      "ts": "spec/userAgent.spec.ts",
+      "note": "existing suite"
+    },
+    "fontist/utils/github_url_spec.rb": {
+      "status": "partial",
+      "ts": "spec/userAgent.spec.ts",
+      "note": "resolver suite"
+    },
+    "fontist/utils/ui_spec.rb": {
+      "status": "partial",
+      "ts": "spec/uiAndFontconfig.spec.ts",
+      "note": "existing suite"
+    },
+    "fontist/fontconfig_spec.rb": {
+      "status": "partial",
+      "ts": "spec/uiAndFontconfig.spec.ts",
+      "note": "existing suite"
+    },
+    "fontist/fontconfig_cli_spec.rb": {
+      "status": "partial",
+      "ts": "spec/uiAndFontconfig.spec.ts",
+      "note": "CLI command"
+    },
+    "fontist/repo_spec.rb": {
+      "status": "partial",
+      "ts": "spec/repo.spec.ts",
+      "note": "existing suite"
+    },
+    "fontist/update_spec.rb": {
+      "status": "partial",
+      "ts": "spec/repo.spec.ts",
+      "note": "existing suite"
+    },
+    "fontist/formula_auto_update_spec.rb": {
+      "status": "partial",
+      "ts": "spec/repo.spec.ts",
+      "note": "update rebuilds indexes"
+    },
+    "fontist/cli_spec.rb": {
+      "status": "partial",
+      "ts": "spec/cli.spec.ts",
+      "note": "existing suite"
+    },
+    "fontist/cache_cli_spec.rb": {
+      "status": "partial",
+      "ts": "spec/cli.spec.ts",
+      "note": "cache commands"
+    },
+    "fontist/config_cli_spec.rb": {
+      "status": "partial",
+      "ts": "spec/cli.spec.ts",
+      "note": "config commands"
+    },
+    "fontist/repo_cli_spec.rb": {
+      "status": "partial",
+      "ts": "spec/cli.spec.ts",
+      "note": "repo commands"
+    },
+    "fontist/resources/google_resource_spec.rb": {
+      "status": "partial",
+      "ts": "spec/installerCoverage.spec.ts",
+      "note": "google installer"
+    },
+    "fontist/resources/apple_cdn_resource_spec.rb": {
+      "status": "partial",
+      "ts": "spec/installerCoverage.spec.ts",
+      "note": "platform gate"
+    },
+    "fontist/resources/windows_fod_resource_spec.rb": {
+      "status": "partial",
+      "ts": "spec/installerCoverage.spec.ts",
+      "note": "fod installer"
+    },
+    "fontist/v5_integration_spec.rb": {
+      "status": "partial",
+      "ts": "spec/install.integration.spec.ts",
+      "note": "v5 end-to-end"
+    },
+    "fontist/font_file_validation_spec.rb": {
+      "status": "partial",
+      "ts": "spec/sfnt.spec.ts",
+      "note": "validation via FontFile"
+    },
+    "fontist/cache/store_spec.rb": {
+      "status": "partial",
+      "ts": "spec/download.spec.ts",
+      "note": "download cache"
+    },
+    "fontist/cache/manager_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "Ruby TTL metadata cache (Marshal-based infra); TS uses explicit memoization"
+    },
+    "fontist/formulas_isolation_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "Ruby autoload/isolation infrastructure test"
+    },
+    "fontist/memoizable_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "Ruby memoization helper"
+    },
+    "fontist/utils/file_magic_spec.rb": {
+      "status": "partial",
+      "ts": "spec/sfnt.spec.ts",
+      "note": "magic detection"
+    },
+    "fontist/utils/file_ops_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "Ruby file ops helper (unzip specific)"
+    },
+    "fontist/utils/system/run_powershell_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "PowerShell runner (Windows-only Ruby infra)"
+    },
+    "fontist/utils/system_platform_override_spec.rb": {
+      "status": "partial",
+      "ts": "spec/config.spec.ts",
+      "note": "platform override resolution"
+    },
+    "fontist/import_source_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/google_import_source_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/macos_import_source_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/sil_import_source_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/windows_import_source_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/macos_framework_metadata_spec.rb": {
+      "status": "partial",
+      "ts": "spec/mirror/macos_framework_spec.ts",
+      "note": "framework version mapping"
+    },
+    "fontist/windows_fod_metadata_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "FOD metadata parsing (payload pipeline not ported)"
+    },
+    "fontist/macos_ondemand_fonts_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "macOS on-demand catalog flow not ported"
+    },
+    "fontist/windows_ondemand_fonts_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "Windows FOD payload flow not ported"
+    },
+    "fontist/resource_collection_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "Ruby resource-collection helper not used by TS port"
+    },
+    "fontist/macos/catalog/asset_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "MobileAsset catalog discovery not ported"
+    },
+    "fontist/macos/catalog/base_parser_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "MobileAsset catalog discovery not ported"
+    },
+    "fontist/macos/catalog/catalog_manager_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "MobileAsset catalog discovery not ported"
+    },
+    "fontist/macos/catalog/font7_parser_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "MobileAsset catalog discovery not ported"
+    },
+    "fontist/macos/catalog/font8_parser_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "MobileAsset catalog discovery not ported"
+    },
+    "fontist/import/create_formula_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/font_metadata_extractor_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/google/api_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/google/data_sources/base_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/google/data_sources/github_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/google/data_sources/ttf_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/google/data_sources/vf_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/google/data_sources/woff2_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/google/font_database_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/google/metadata_adapter_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/google/models/axis_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/google/models/font_family_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/google/models/font_variant_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/macos_dfont_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/macos_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/models/font_metadata_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/otf/font_file_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/sil_importer_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/v4_to_v5_migrator_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/import/windows_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "formula import tooling not ported"
+    },
+    "fontist/indexes/directory_change_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "supplementary incremental machinery not ported (mtime+size path covers behavior)"
+    },
+    "fontist/indexes/directory_snapshot_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "supplementary incremental machinery not ported (mtime+size path covers behavior)"
+    },
+    "fontist/indexes/incremental_index_updater_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "supplementary incremental machinery not ported (mtime+size path covers behavior)"
+    },
+    "fontist/indexes/incremental_scanner_spec.rb": {
+      "status": "not-ported",
+      "ts": null,
+      "note": "supplementary incremental machinery not ported (mtime+size path covers behavior)"
+    }
+  }
+}
