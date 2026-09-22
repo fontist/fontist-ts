@@ -21,6 +21,8 @@ import {
 import { FontInstaller } from '../installer/fontInstaller.js';
 import { Fontconfig } from '../fontconfig/fontconfig.js';
 import { SystemFont } from '../system/systemFont.js';
+import { FontPath } from '../fonts/fontPath.js';
+import type { FontModel } from '../formula/models.js';
 import { defaultUserFontPath } from '../system/fontDirs.js';
 import { FormulaSuggestion } from '../formula/formulaSuggestion.js';
 import { ensureFormulasAvailable } from '../repo/formulasRepo.js';
@@ -109,11 +111,15 @@ export class Font {
     return new Font(ctx, { name }).doList();
   }
 
-  static async all(ctx: FontistContext): Promise<Formula[]> {
+  /** All fonts declared by platform-supported formulas
+   * (Ruby `all_formulas.map(&:fonts).flatten`). */
+  static async all(ctx: FontistContext): Promise<FontModel[]> {
     await ensureFormulasAvailable(ctx);
     const repository = new FormulaRepository(ctx);
     const formulas = await repository.all();
-    return formulas.filter((formula) => this.isSupportedFormula(formula, ctx));
+    return formulas
+      .filter((formula) => this.isSupportedFormula(formula, ctx))
+      .flatMap((formula) => formula.allFonts());
   }
 
   private static isSupportedFormula(formula: Formula, ctx: FontistContext): boolean {
@@ -283,7 +289,7 @@ export class Font {
 
     const uninstalled: string[] = [];
     for (const scope of scopes) {
-      const fonts = await scope.index.find(name, null);
+      const fonts = (await scope.index.find(name, null)) ?? [];
       for (const font of fonts) {
         const location = await scope.locationFor(font.path);
         if (!location) continue;
@@ -365,7 +371,7 @@ export class Font {
     }
     this.ctx.ui.say('Fonts found at:');
     for (const fontPath of paths) {
-      this.ctx.ui.say(new FontPath(fontPath).toString());
+      this.ctx.ui.say(await new FontPath(fontPath, this.ctx).toString());
     }
     return paths;
   }
@@ -383,15 +389,6 @@ export class Font {
   /** Exposed for the manifest layer to reuse the install flow. */
   static installOptionsFor(formatSpec: FormatSpec | null): FontOptions {
     return { formatSpec, force: true };
-  }
-}
-
-/** Decorated path renderer (Ruby FontPath). */
-export class FontPath {
-  constructor(private readonly fontPath: string) {}
-
-  toString(): string {
-    return this.fontPath;
   }
 }
 

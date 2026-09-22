@@ -3,7 +3,8 @@
  *
  * Public API surface. Everything not exported here is internal.
  */
-export { Font, FontPath, type FontOptions } from './api/font.js';
+export { Font, type FontOptions } from './api/font.js';
+export { FontPath } from './fonts/fontPath.js';
 export { Manifest, ManifestFont, type ManifestResponseFont, type ManifestResponseStyle } from './api/manifest.js';
 
 export { Formula, FormulaCollection, keyFromPath, titleize } from './formula/formula.js';

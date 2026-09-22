@@ -19,6 +19,10 @@ export class FormatMatcher {
     this.spec = spec ?? new FormatSpec();
   }
 
+  hasConstraints(): boolean {
+    return this.spec.hasConstraints();
+  }
+
   matchesResource(resource: Resource): boolean {
     if (!this.spec.hasConstraints()) return true;
     if (this.spec.format && resource.format && resource.format !== this.spec.format) {

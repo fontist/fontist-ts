@@ -81,3 +81,14 @@ async function isDirectory(dir: string): Promise<boolean> {
     return false;
   }
 }
+
+/** Base directories of the configured system font patterns (the part before
+ * the first wildcard), used as the monitored set for index change detection
+ * (Ruby `extract_font_directories`). */
+export function systemTemplateBaseDirs(ctx: FontistContext): string[] {
+  const dirs = systemFontDirPatterns(ctx.platform)
+    .map((pattern) => expandPattern(pattern, ctx))
+    .map((expanded) => expanded.split('/*')[0]!)
+    .filter((dir) => dir.length > 0 && !dir.includes('%'));
+  return Array.from(new Set(dirs));
+}

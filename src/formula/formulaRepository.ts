@@ -92,6 +92,16 @@ export class FormulaRepository {
     return this.findByKey(nameToKey(keyOrName));
   }
 
+  /** Ruby `Formula.find_by_font_file`: the formula whose style declares the
+   * given font file (via the formula filename index). */
+  async findByFontFile(fontFilePath: string): Promise<Formula | null> {
+    const { FormulaFilenameIndex } = await import('../index/formula/formulaFontIndex.js');
+    const filenameIndex = new FormulaFilenameIndex(this.ctx, this);
+    const fileName = path.basename(fontFilePath);
+    const formulas = await filenameIndex.loadFormulasByFile(fileName);
+    return formulas[0] ?? null;
+  }
+
   /** All formulas declaring a font with the given name (via the font index). */
   async findFormulasForFont(fontName: string): Promise<Formula[]> {
     const { FormulaIndexRegistry } = await import('../index/formula/formulaFontIndex.js');

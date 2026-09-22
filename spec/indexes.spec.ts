@@ -209,15 +209,19 @@ describe('installed-font indexes', () => {
       const fontsDir = env.ctx.paths.fontsPath();
       await fsp.mkdir(fontsDir, { recursive: true });
       await fsp.writeFile(path.join(fontsDir, 'Inter-Regular.ttf'), makeTtf({ family: 'Inter', subfamily: 'Regular', fullName: 'Inter Regular' }));
+      // Fonts missing required name records are not indexable (Ruby indexability gate)
       await fsp.writeFile(path.join(fontsDir, 'Inter-Bold.ttf'), makeTtf({ family: 'Inter', subfamily: 'Bold', fullName: 'Inter Bold' }));
+      // Fonts missing required name records are not indexable (Ruby indexability gate)
 
       const index = new FontistIndex(env.ctx);
       const found = await index.find('inter');
       expect(found).toHaveLength(2);
-      const bold = await index.find('inter', 'bold');
+      const bold = (await index.find('inter', 'bold')) ?? [];
       expect(bold).toHaveLength(1);
       expect(bold[0]!.subfamily).toBe('Bold');
-      expect(await index.findPath('Inter Regular')).toContain('Inter-Regular.ttf');
+      expect(await index.findPath('Inter', 'Regular')).toContain('Inter-Regular.ttf');
+      // Ruby find matches family names only; full names are stored, never matched
+      expect(await index.findPath('Inter Regular')).toBeNull();
     } finally {
       await cleanup(env);
     }
@@ -229,7 +233,7 @@ describe('installed-font indexes', () => {
       const fontsDir = env.ctx.paths.fontsPath();
       await fsp.mkdir(fontsDir, { recursive: true });
       const fontPath = path.join(fontsDir, 'One.ttf');
-      await fsp.writeFile(fontPath, makeTtf({ family: 'One' }));
+      await fsp.writeFile(fontPath, makeTtf({ family: 'One', subfamily: 'Regular', fullName: 'One Regular' }));
 
       const first = new FontistIndex(env.ctx);
       const before = await first.find('one');
@@ -242,9 +246,19 @@ describe('installed-font indexes', () => {
       expect(await second.find('one')).toHaveLength(1);
       expect(await fsp.readFile(indexPath, 'utf8')).toBe(snapshot);
 
-      // Forced rebuild re-parses and rewrites (scan time changes).
+      // Forced rebuild within the adoption window adopts the on-disk index
+      // (Ruby rebuild_with_lock), leaving the file byte-identical.
       const third = new FontistIndex(env.ctx);
       await third.rebuild({ forced: true });
+      expect(await fsp.readFile(indexPath, 'utf8')).toBe(snapshot);
+
+      // A stale last_scan_time defeats adoption -> real rescan rewrites.
+      const yamlMod = await import('yaml');
+      const stale = yamlMod.parse(snapshot) as { last_scan_time: number };
+      stale.last_scan_time = 0;
+      await fsp.writeFile(indexPath, yamlMod.stringify(stale, { lineWidth: 1000 }));
+      const fourth = new FontistIndex(env.ctx);
+      await fourth.rebuild({ forced: true });
       expect(await fsp.readFile(indexPath, 'utf8')).not.toBe(snapshot);
     } finally {
       await cleanup(env);
@@ -257,18 +271,18 @@ describe('installed-font indexes', () => {
       const fontsDir = env.ctx.paths.fontsPath();
       await fsp.mkdir(fontsDir, { recursive: true });
       const fontPath = path.join(fontsDir, 'Two.ttf');
-      await fsp.writeFile(fontPath, makeTtf({ family: 'Two' }));
+      await fsp.writeFile(fontPath, makeTtf({ family: 'Two', subfamily: 'Regular', fullName: 'Two Regular' }));
       const index = new FontistIndex(env.ctx);
       expect(await index.find('two')).toHaveLength(1);
 
       const extra = path.join(fontsDir, 'Three.ttf');
-      await fsp.writeFile(extra, makeTtf({ family: 'Three' }));
+      await fsp.writeFile(extra, makeTtf({ family: 'Three', subfamily: 'Regular', fullName: 'Three Regular' }));
       await index.addFont(extra);
       expect(await index.find('three')).toHaveLength(1);
 
       await fsp.rm(extra, { force: true });
       await index.removeFont(extra);
-      expect(await index.find('three')).toHaveLength(0);
+      expect(await index.find('three')).toBeNull();
       expect(await index.find('two')).toHaveLength(1);
     } finally {
       await cleanup(env);
@@ -280,12 +294,15 @@ describe('installed-font indexes', () => {
     try {
       const fontsDir = env.ctx.paths.fontsPath();
       await fsp.mkdir(fontsDir, { recursive: true });
-      await fsp.writeFile(path.join(fontsDir, 'Good.ttf'), makeTtf({ family: 'Good' }));
+      await fsp.writeFile(path.join(fontsDir, 'Good.ttf'), makeTtf({ family: 'Good', subfamily: 'Regular', fullName: 'Good Regular' }));
       await fsp.writeFile(path.join(fontsDir, 'Corrupt.ttf'), Buffer.from('garbage garbage garbage'));
+      // Parses but lacks required name records -> not indexable
+      await fsp.writeFile(path.join(fontsDir, 'Nameless.ttf'), makeTtf({ family: 'Nameless' }));
       const index = new FontistIndex(env.ctx);
       const found = await index.find('good');
       expect(found).toHaveLength(1);
-      expect(await index.find('corrupt')).toHaveLength(0);
+      expect(await index.find('corrupt')).toBeNull();
+      expect(await index.find('nameless')).toBeNull();
     } finally {
       await cleanup(env);
     }

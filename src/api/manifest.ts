@@ -138,9 +138,9 @@ export class Manifest {
         : options.formatMatcher ?? null;
       const groups = new Map<string, ManifestResponseStyle>();
       for (const style of styles) {
-        let found: FoundStyle[];
+        let found: FoundStyle[] = [];
         try {
-          found = await systemFont.findStyles(font.name ?? '', style, matcher);
+          found = (await systemFont.findStyles(font.name ?? '', style, matcher)) ?? [];
         } catch {
           found = [];
         }

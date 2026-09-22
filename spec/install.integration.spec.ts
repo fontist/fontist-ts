@@ -91,7 +91,7 @@ describe('install locations', () => {
     const location = createInstallLocation('fontist', env.ctx, formula) as FontistLocation;
     expect(location.basePath()).toContain(path.join('fonts', 'spec_sans'));
     const source = path.join(env.home, 'src.ttf');
-    await fsp.writeFile(source, makeTtf({ family: 'Spec Sans', subfamily: 'Regular' }));
+    await fsp.writeFile(source, makeTtf({ family: 'Spec Sans', subfamily: 'Regular', fullName: 'Spec Sans Regular' }));
     const installed = await location.installFont(source, 'SpecSans-Regular.ttf');
     expect(installed).toContain('spec_sans');
     const removed = await location.uninstallFont('SpecSans-Regular.ttf');
@@ -104,7 +104,7 @@ describe('install locations', () => {
     const formula = (await new FormulaRepository(env.ctx).findByName('Spec Sans'))!;
     const location = createInstallLocation('fontist', env.ctx, formula);
     const source = path.join(env.home, 'src.ttf');
-    await fsp.writeFile(source, makeTtf({ family: 'X' }));
+    await fsp.writeFile(source, makeTtf({ family: 'X', subfamily: 'Regular', fullName: 'X Regular' }));
     const first = await location.installFont(source, 'Dup.ttf');
     const replaced = await location.installFont(source, 'Dup.ttf');
     expect(replaced).toBe(first);
