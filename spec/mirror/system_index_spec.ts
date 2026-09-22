@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import * as yaml from 'yaml';
 import { describe, expect, it } from 'vitest';
 import { FontistIndex } from '../../src/index/installed/collectionIndexes.js';
-import { cleanup, makeOtf, makeTtc, makeTtf, testEnv, type TestEnv } from '../helpers/index.js';
+import { makeOtf, makeTtc, makeTtf, testEnv, type TestEnv } from '../helpers/index.js';
 
 const envs: TestEnv[] = [];
 
