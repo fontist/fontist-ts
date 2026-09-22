@@ -13,7 +13,7 @@
     "fontist/font_spec.rb": {
       "status": "partial",
       "ts": "spec/mirror/font_spec.ts",
-      "note": "core find/install/uninstall/status/list, licensing, errors"
+      "note": "find/install/uninstall/status/list, licensing, errors, cache messaging, source_font rename, interactive suggestions, skip-download"
     },
     "fontist/formula_spec.rb": {
       "status": "mirrored",
@@ -203,7 +203,7 @@
     "fontist/cli_spec.rb": {
       "status": "partial",
       "ts": "spec/cli.spec.ts",
-      "note": "existing suite"
+      "note": "existing suite incl. manifest and fontconfig commands, exit codes"
     },
     "fontist/cache_cli_spec.rb": {
       "status": "partial",

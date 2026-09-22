@@ -188,20 +188,37 @@ export class Font {
 
   private async installFormula(formulaName: string): Promise<string[]> {
     const formula = await this.repository.findByKeyOrName(formulaName);
-    if (!formula || !formula.isDownloadable()) {
-      await this.suggestFormula(formulaName);
-      throw new MissingFontError(formulaName);
+    if (formula && formula.isDownloadable()) {
+      return this.requestFormulaInstallation(formula, null);
     }
-    return this.requestFormulaInstallation(formula, null);
+    const chosen = await this.offerToChoose(formulaName);
+    if (chosen) {
+      return this.requestFormulaInstallation(chosen, null);
+    }
+    throw new MissingFontError(formulaName);
   }
 
-  private async suggestFormula(name: string): Promise<void> {
-    if (!this.options.interactive) return;
-    const suggestions = await new FormulaSuggestion(this.repository).find(name);
-    if (suggestions.length > 0) {
-      this.ctx.ui.say(`Formula "${name}" not found. Did you mean?`);
-      suggestions.forEach((key, index) => this.ctx.ui.say(`[${index}] ${key}`));
+  /** Ruby make_suggestions + offer_to_choose: fuzzy suggestions with an
+   * interactive numbered pick; blank input skips installation. */
+  private async offerToChoose(name: string): Promise<Formula | null> {
+    if (!this.options.interactive) return null;
+    const suggestionKeys = await new FormulaSuggestion(this.repository).find(name);
+    if (suggestionKeys.length === 0) return null;
+    const formulas = await Promise.all(
+      suggestionKeys.map((key) => this.repository.findByKeyOrName(key)),
+    );
+    const downloadable = formulas.filter((f): f is Formula => f !== null && f.isDownloadable());
+    if (downloadable.length === 0) return null;
+
+    this.ctx.ui.say(`Formula '${name}' not found. Did you mean?`);
+    for (const [index, candidate] of downloadable.entries()) {
+      this.ctx.ui.say(`[${index}] ${candidate.name ?? candidate.key()}`);
     }
+    const choice = await this.ctx.ui.ask(
+      'Please type number or press ENTER to skip installation:',
+    );
+    if (choice.trim().length === 0) return null;
+    return downloadable[Number.parseInt(choice, 10)] ?? null;
   }
 
   private async requestFormulaInstallation(formula: Formula, fontName: string | null): Promise<string[]> {

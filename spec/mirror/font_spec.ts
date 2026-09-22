@@ -26,10 +26,17 @@ import {
 
 let server: Server;
 let baseUrl: string;
+let requestCount = 0;
 const envs: TestEnv[] = [];
 
 beforeAll(async () => {
   server = createServer((req, res) => {
+    requestCount += 1;
+    if (req.url?.endsWith('/rename.zip') && renameZipPayload) {
+      res.writeHead(200, { 'Content-Length': renameZipPayload.length });
+      res.end(renameZipPayload);
+      return;
+    }
     if (req.url?.endsWith('/mirror.zip')) {
       const font = fontFileFor({ family: 'DejaVu Sans', subfamily: 'Regular', fullName: 'DejaVu Sans' });
       const zip = makeZip([{ name: 'DejaVuSans.ttf', data: font.data }]);
@@ -54,6 +61,12 @@ afterEach(async () => {
     await cleanup(envs.pop()!);
   }
 });
+
+let renameZipPayload: Buffer | null = null;
+
+async function serveRenameZip(data: Buffer): Promise<void> {
+  renameZipPayload = makeZip([{ name: 'renamed_old.ttf', data }]);
+}
 
 async function envWithDejavu(extra: Record<string, unknown> = {}): Promise<TestEnv> {
   const env = await testEnv();
@@ -186,6 +199,88 @@ describe('.install', () => {
     expect(paths).toHaveLength(1);
   });
 });
+
+
+  it('skips download when the font is already installed', async () => {
+    const env = await envWithDejavu();
+    await Font.install('DejaVu Sans', env.ctx, { confirmation: 'yes' });
+    requestCount = 0;
+    const again = await Font.install('DejaVu Sans', env.ctx);
+    expect(again).toHaveLength(1);
+    expect(requestCount).toBe(0);
+  });
+
+  it('tells about fetching from cache', async () => {
+    const env = await envWithDejavu();
+    await Font.install('DejaVu Sans', env.ctx, { confirmation: 'yes' });
+    env.ui.lines.length = 0;
+    await Font.install('DejaVu Sans', env.ctx, { confirmation: 'yes', force: true });
+    expect(env.ui.lines.join('\n')).toContain('Using cached file.');
+  });
+
+  it('detects, renames and installs the font (source_font)', async () => {
+    const env = await testEnv();
+    envs.push(env);
+    const font = fontFileFor({ family: 'Renamed Sans', subfamily: 'Regular', fullName: 'Renamed Sans' });
+    await writeFormula(env, 'renamed_sans', {
+      name: 'Renamed Sans Formula',
+      fonts: [
+        {
+          name: 'Renamed Sans',
+          styles: [
+            {
+              family_name: 'Renamed Sans',
+              type: 'Regular',
+              full_name: 'Renamed Sans',
+              post_script_name: 'RenamedSans',
+              font: 'RenamedSans.ttf',
+              source_font: 'renamed_old.ttf',
+            },
+          ],
+        },
+      ],
+      resources: { 'r.zip': { urls: [`${baseUrl}/rename.zip`] } },
+    });
+    const { default: expressish } = { default: null };
+    void expressish;
+    await serveRenameZip(font.data);
+    const paths = await Font.install('Renamed Sans', env.ctx, { confirmation: 'yes' });
+    expect(paths[0]!.endsWith('RenamedSans.ttf')).toBe(true);
+    await expect(fsp.access(paths[0]!)).resolves.toBeUndefined();
+  });
+
+  it('offers an interactive formula choice when the name misses', async () => {
+    const env = await envWithDejavu();
+    const { UI } = await import('../../src/ui/ui.js');
+    const answers = ['0'];
+    const promptLines: string[] = [];
+    class PromptUi extends UI {
+      constructor() {
+        super({
+          out: { write: (text: string) => promptLines.push(text) },
+          err: { write: (text: string) => promptLines.push(text) },
+          tty: false,
+        });
+      }
+      override async ask(): Promise<string> {
+        return answers.shift() ?? '';
+      }
+    }
+    const { createContext } = await import('../../src/context.js');
+    const promptCtx = await createContext(
+      { FONTIST_PATH: env.ctx.paths.fontistPath() } as NodeJS.ProcessEnv,
+      { ui: new PromptUi(), platform: 'macos' },
+    );
+    const paths = await Font.install('dejavu', promptCtx, {
+      formula: 'dejavu-typo',
+      interactive: true,
+      confirmation: 'yes',
+    });
+    expect(paths).toHaveLength(1);
+    const output = promptLines.join('\n');
+    expect(output).toContain("Formula 'dejavu-typo' not found. Did you mean?");
+    expect(output).toMatch(/\[0\] DejaVu/);
+  });
 
 describe('.uninstall', () => {
   it('raises font unsupported error for unknown fonts', async () => {

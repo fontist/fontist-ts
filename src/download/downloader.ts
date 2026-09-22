@@ -70,9 +70,11 @@ export class Downloader {
             this.ctx.ui.debug(`Cached file ${cached} failed checksum; re-downloading`);
             await fsp.rm(path.dirname(cached), { recursive: true, force: true });
           } else {
+            this.ctx.ui.say('Using cached file.');
             return { path: cached, fromCache: true };
           }
         } else {
+          this.ctx.ui.say('Using cached file.');
           return { path: cached, fromCache: true };
         }
       }
