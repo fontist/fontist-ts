@@ -14,6 +14,12 @@ jobs:
         node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
+      # The Ruby gem's spec suite is the mirror source for
+      # scripts/check-spec-mirror.mjs (expects it at ../fontist/spec).
+      - uses: actions/checkout@v4
+        with:
+          repository: fontist/fontist
+          path: fontist
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
