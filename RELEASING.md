@@ -8,7 +8,8 @@
 3. **Smoke-test the CLI** from the build:
    `FONTIST_PATH=/tmp/fontist-home node dist/cli/cli.js update && \
     FONTIST_PATH=/tmp/fontist-home node dist/cli/cli.js install akabara-cinderella`
-4. **Publish**: `npm publish` (add `--tag next` for pre-releases so `latest`
+4. **Publish**: `npm publish` (the scoped package publishes as public via
+   `publishConfig.access`; add `--tag next` for pre-releases so `latest`
    keeps pointing at the last stable).
 5. **Tag and GitHub release**: push the `v<version>` tag created by
    `npm version`, and create the GitHub release with notes from the commits
