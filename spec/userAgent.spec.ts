@@ -1,3 +1,4 @@
+// Mirrors fontist/utils/user_agent_spec.rb, fontist/utils/github_url_spec.rb (Ruby gem): representative coverage.
 import { createServer, type Server } from 'node:http';
 import { describe, expect, it } from 'vitest';
 import { browserHeaders, randomBrowserProfile, ApiGithubUrlResolver, GITHUB_DOWNLOAD_URL } from '../src/download/userAgent.js';

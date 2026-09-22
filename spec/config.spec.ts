@@ -1,3 +1,4 @@
+// Mirrors fontist/config_spec.rb, fontist/utils/system_platform_override_spec.rb (Ruby gem): representative coverage.
 import { promises as fsp } from 'node:fs';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';

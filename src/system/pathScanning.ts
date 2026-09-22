@@ -28,7 +28,7 @@ async function scanDir(dir: string, depth: number, results: string[]): Promise<v
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       await scanDir(full, depth + 1, results);
-    } else if (entry.isFile() && isFontFile(entry.name) && !isExcludedFont(entry.name)) {
+    } else if (entry.isFile() && !entry.name.startsWith('.') && isFontFile(entry.name) && !isExcludedFont(entry.name)) {
       results.push(full);
     }
   }
