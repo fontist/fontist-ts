@@ -1,9 +1,17 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { Config, type ConfigEnvironment } from './config/config.js';
 import { FontistPaths } from './paths.js';
 import { UI } from './ui/ui.js';
 import type { FontistPlatform } from './ui/ui.js';
 
-export const FONTIST_VERSION = '1.0.0-alpha.1';
+/** The package version, read from package.json so the CLI and the library
+ * always report the published version. */
+export const FONTIST_VERSION = (
+  JSON.parse(
+    readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'),
+  ) as { version: string }
+).version;
 
 export interface FontistContext {
   config: Config;
