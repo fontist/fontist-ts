@@ -1,7 +1,7 @@
 import { promises as fsp } from 'node:fs';
+import * as path from 'node:path';
 import type { FontistContext } from '../../context.js';
 import { FontFile } from '../../fonts/fontFile.js';
-import { FontIndexabilityValidationError } from '../../errors/errors.js';
 import type { FormatMatcher } from '../../formula/formatMatcher.js';
 import { mapWithConcurrency } from '../../util/concurrency.js';
 import { withLock } from '../../util/locking.js';
@@ -11,7 +11,8 @@ import {
   collectDirectoryMtimes,
   loadCollection,
   saveCollection,
-  SystemIndexFont
+  SystemIndexFont,
+  type SystemIndexFontData,
 } from './systemIndexFont.js';
 
 const FONT_PARSE_CONCURRENCY = 8;
@@ -73,9 +74,11 @@ export abstract class BaseFontCollectionIndex {
   async addFont(fontPath: string): Promise<void> {
     const collection = await this.loadCollection();
     const stats = await fsp.stat(fontPath);
-    const font = await this.parseFont(fontPath, stats.size, Math.floor(stats.mtimeMs));
+    const fonts = await this.parseFonts(fontPath, stats.size, Math.floor(stats.mtimeMs));
     collection.removeByPath(fontPath);
-    collection.addParsed(font);
+    for (const font of fonts) {
+      collection.addParsed(font);
+    }
     await saveCollection(this.indexPath(), collection);
   }
 
@@ -107,27 +110,29 @@ export abstract class BaseFontCollectionIndex {
         this.ctx.ui.say(`Building font index (${paths.length} fonts found, this may take a while...)`);
       }
       const directories = await this.monitoredDirectories();
-      const previousByPath = new Map(existing.all().map((font) => [font.data.path, font.data]));
+      const previousByPath = new Map<string, SystemIndexFontData[]>();
+      for (const font of existing.all()) {
+        const list = previousByPath.get(font.data.path) ?? [];
+        list.push(font.data);
+        previousByPath.set(font.data.path, list);
+      }
       const statsByPath = await collectStats(paths);
       let processed = 0;
       const fonts = await mapWithConcurrency(paths, FONT_PARSE_CONCURRENCY, async (fontPath) => {
         const stats = statsByPath.get(fontPath);
-        if (!stats) return null;
+        if (!stats) return [];
         const previous = previousByPath.get(fontPath);
-        let parsed: SystemIndexFont | null = null;
+        let parsed: SystemIndexFont[];
         if (
           !options.forced &&
           previous &&
-          previous.file_size === stats.size &&
-          previous.file_mtime === stats.mtimeMs
+          previous.length > 0 &&
+          previous[0]!.file_size === stats.size &&
+          previous[0]!.file_mtime === stats.mtimeMs
         ) {
-          parsed = new SystemIndexFont(previous);
+          parsed = previous.map((data) => new SystemIndexFont(data));
         } else {
-          try {
-            parsed = await this.parseFont(fontPath, stats.size, stats.mtimeMs);
-          } catch (err) {
-            this.ctx.ui.debug(`Skipping unreadable font ${fontPath}: ${String(err)}`);
-          }
+          parsed = await this.parseFonts(fontPath, stats.size, stats.mtimeMs);
         }
         processed += 1;
         if (paths.length > 100 && processed % 50 === 0) {
@@ -135,7 +140,7 @@ export abstract class BaseFontCollectionIndex {
         }
         return parsed;
       });
-      const kept = fonts.filter((font): font is SystemIndexFont => font !== null);
+      const kept = fonts.flat();
       const collection = this.collection ?? existing;
       collection.replaceAll(kept, Date.now(), await collectDirectoryMtimes(directories));
       collection.markVerified();
@@ -174,31 +179,74 @@ export abstract class BaseFontCollectionIndex {
     }
   }
 
-  private async parseFont(
+  /** Parses one font file into index entries. Plain fonts yield a single
+   * entry; collections (ttc/otc) yield one entry per face (Ruby
+   * detect_collection_fonts). Faces with incomplete name records are
+   * skipped individually; unreadable files are reported, not raised. */
+  private async parseFonts(
     fontPath: string,
     size: number,
     mtimeMs: number,
-  ): Promise<SystemIndexFont> {
-    const fontFile = await FontFile.fromPath(fontPath);
-    // Indexability gate (Ruby's :indexability validation): fonts without the
-    // required name records would fail check_index on every later load.
-    if (!fontFile.familyName || !fontFile.fullName || !fontFile.subfamilyName) {
-      throw new FontIndexabilityValidationError(
-        `Font ${fontPath} misses family/full/subfamily name records required for indexing`,
+  ): Promise<SystemIndexFont[]> {
+    let fontFile: FontFile;
+    try {
+      fontFile = await FontFile.fromPath(fontPath);
+    } catch (err) {
+      this.ctx.ui.error(
+        `${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}` +
+          `\nWarning: File at ${fontPath} not recognized as a font file.`,
+      );
+      return [];
+    }
+    const faces =
+      fontFile.format === 'ttc' || fontFile.format === 'otc'
+        ? await this.collectionFaces(fontPath)
+        : [fontFile];
+    const entries: SystemIndexFont[] = [];
+    for (const face of faces) {
+      if (!face.familyName || !face.fullName || !face.subfamilyName) {
+        this.ctx.ui.error(
+          `Skipping font with incomplete metadata: ${fontPath}` +
+            `\nMissing attributes: full_name, family_name.` +
+            '\nThis font will not be indexed, but Fontist will continue to work.',
+        );
+        continue;
+      }
+      entries.push(
+        new SystemIndexFont({
+          path: fontPath,
+          full_name: face.fullName,
+          family_name: face.familyName,
+          type: face.subfamilyName ?? '',
+          preferred_family_name: face.preferredFamilyName,
+          preferred_subfamily_name: face.preferredSubfamilyName,
+          file_size: size,
+          file_mtime: mtimeMs,
+          format: face.format,
+          variable_font: face.isVariable,
+          variable_axes: face.variableAxes,
+        }),
       );
     }
-    return new SystemIndexFont({
-      path: fontPath,
-      full_name: fontFile.fullName,
-      family_name: fontFile.familyName,
-      type: fontFile.subfamilyName,
-      preferred_family_name: fontFile.preferredFamilyName,
-      preferred_subfamily_name: fontFile.preferredSubfamilyName,
-      file_size: size,
-      file_mtime: mtimeMs,
-      format: fontFile.format,
-      variable_font: fontFile.isVariable,
-      variable_axes: fontFile.variableAxes,
-    });
+    return entries;
+  }
+
+  private async collectionFaces(fontPath: string): Promise<FontFile[]> {
+    const { FontFile: FF } = await import('../../fonts/fontFile.js');
+    const { SfntCollection } = await import('../../fonts/sfnt/collection.js');
+    const bytes = await fsp.readFile(fontPath);
+    const collection = new SfntCollection(bytes);
+    const faces: FontFile[] = [];
+    for (let index = 0; index < collection.faceCount(); index++) {
+      try {
+        faces.push(await FF.fromPath(fontPath, { collectionIndex: index }));
+      } catch (err) {
+        this.ctx.ui.debug(
+          `Skipping corrupt/invalid font: ${path.basename(fontPath)}` +
+            `\nValidation failed: ${String(err)}`,
+        );
+      }
+    }
+    return faces;
   }
 }
