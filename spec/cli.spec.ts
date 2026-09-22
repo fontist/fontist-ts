@@ -5,15 +5,22 @@ import * as path from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { runCli } from '../src/cli/cli.js';
 import { DownloadCache } from '../src/download/downloadCache.js';
-import { cleanup, fontFileFor, makeZip, testEnv, writeFormula, type TestEnv } from './helpers/index.js';
+import { cleanup, fontFileFor, makeTtc, makeZip, testEnv, writeFormula, type TestEnv } from './helpers/index.js';
 
 let server: Server;
 let baseUrl: string;
 const envs: TestEnv[] = [];
 let env: TestEnv;
 
+let collectionPayload: Buffer | null = null;
+
 beforeAll(async () => {
   server = createServer((req, res) => {
+    if (req.url?.endsWith('/collection.zip') && collectionPayload) {
+      res.writeHead(200, { 'Content-Length': collectionPayload.length });
+      res.end(collectionPayload);
+      return;
+    }
     if (req.url?.endsWith('/cli.zip')) {
       const font = fontFileFor({ family: 'Cli Sans', subfamily: 'Regular', fullName: 'Cli Sans Regular' });
       const zip = makeZip([{ name: 'CliSans-Regular.ttf', data: font.data }]);
@@ -134,6 +141,31 @@ describe('CLI', () => {
     env.ui.lines.length = 0;
     await run(argv('list "Cli Sans"'));
     expect(env.ui.lines.join('\n')).toContain('installed');
+  });
+
+  it('uninstalls a collection font by face family name', async () => {
+    await freshEnv();
+    await writeFormula(env, 'collection_pack', {
+      name: 'Collection Pack',
+      font_collections: [
+        {
+          filename: 'Pack.ttc',
+          fonts: [
+            { name: 'Pack Face One', styles: [{ family_name: 'Pack Face One', type: 'Regular', full_name: 'Pack Face One', font: 'Pack.ttc' }] },
+          ],
+        },
+      ],
+      resources: { 'c.zip': { urls: [`${baseUrl}/collection.zip`] } },
+    });
+    collectionPayload = makeZip([
+      { name: 'Pack.ttc', data: makeTtc([{ family: 'Pack Face One', subfamily: 'Regular', fullName: 'Pack Face One' }]) },
+    ]);
+    expect(await run(argv('install "Pack Face One" -a -p'))).toBe(0);
+    env.ui.lines.length = 0;
+    expect(await run(argv('status "Pack Face One"'))).toBe(0);
+    expect(env.ui.lines.join('\n')).toContain('Pack.ttc');
+    expect(await run(argv('uninstall "Pack Face One"'))).toBe(0);
+    expect(await run(argv('status "Pack Face One"'))).toBe(3);
   });
 
   it('config set/get/delete round-trips through config.yml', async () => {

@@ -13,7 +13,7 @@
     "fontist/font_spec.rb": {
       "status": "partial",
       "ts": "spec/mirror/font_spec.ts",
-      "note": "find/install/uninstall/status/list, licensing, errors, cache messaging, source_font rename, interactive suggestions, skip-download"
+      "note": "find/install/uninstall/status/list, licensing, errors, cache messaging, source_font rename, interactive suggestions, skip-download, collection-file install/uninstall by face"
     },
     "fontist/formula_spec.rb": {
       "status": "mirrored",
@@ -23,7 +23,7 @@
     "fontist/system_index_spec.rb": {
       "status": "partial",
       "ts": "spec/mirror/system_index_spec.ts",
-      "note": "corruption, magic-byte dispatch, rebuild triggers, metadata filter"
+      "note": "corruption, magic-byte dispatch, multi-face collection indexing, rebuild triggers, metadata filtering, recognition errors"
     },
     "fontist/system_index_font_collection_spec.rb": {
       "status": "partial",

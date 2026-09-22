@@ -55,9 +55,9 @@ describe('SystemIndexFontCollection', () => {
     void fontPath;
   });
 
-  it('indexes all faces of a collection by magic bytes', async () => {
+  it('indexes all fonts from the collection based on magic bytes', async () => {
     const e = await env();
-    await writeFont(
+    const fontPath = await writeFont(
       e,
       'Pack.ttc',
       makeTtc([
@@ -66,24 +66,35 @@ describe('SystemIndexFontCollection', () => {
       ]),
     );
     const index = new FontistIndex(e.ctx);
-    // Face 0 is indexed (Ruby FontFile.from_path reads the first face).
-    expect(await index.find('Pack One')).toHaveLength(1);
+    const faceOne = await index.find('Pack One');
+    const faceTwo = await index.find('Pack Two', 'Italic');
+    expect(faceOne).toHaveLength(1);
+    expect(faceTwo).toHaveLength(1);
+    // Both faces share the collection file path.
+    expect(faceOne![0]!.path).toBe(fontPath);
+    expect(faceTwo![0]!.path).toBe(fontPath);
+    expect(faceTwo![0]!.fullName).toBe('Pack Two Italic');
   });
 
-  it('warns about corrupt font files without raising', async () => {
+  it('prints a recognition error without raising', async () => {
     const e = await env();
     await writeFont(e, 'Broken.ttf', Buffer.from('not a font at all'));
     const index = new FontistIndex(e.ctx);
     expect(await index.find('Broken')).toBeNull();
     expect(await index.find('Anything')).toBeNull(); // no raise
+    expect(e.ui.lines.join('\n')).toContain('not recognized as a font file');
   });
 
-  it('filters out entries with incomplete metadata at scan time', async () => {
+  it('filters out fonts with incomplete metadata', async () => {
     const e = await env();
     // Parses fine but lacks name records -> not indexable.
     await writeFont(e, 'Nameless.ttf', makeTtf({ family: 'Nameless' }));
     const index = new FontistIndex(e.ctx);
     expect(await index.find('Nameless')).toBeNull();
+    const output = e.ui.lines.join('\n');
+    expect(output).toContain('Skipping font with incomplete metadata');
+    expect(output).toContain('Missing attributes: full_name, family_name.');
+    expect(output).toContain('Fontist will continue to work');
   });
 
   it('excludes listed fonts from the index', async () => {

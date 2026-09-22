@@ -17,6 +17,7 @@ import {
 import {
   cleanup,
   fontFileFor,
+  makeTtc,
   makeTtf,
   makeZip,
   testEnv,
@@ -32,6 +33,11 @@ const envs: TestEnv[] = [];
 beforeAll(async () => {
   server = createServer((req, res) => {
     requestCount += 1;
+    if (req.url?.endsWith('/collection.zip') && collectionZipPayload) {
+      res.writeHead(200, { 'Content-Length': collectionZipPayload.length });
+      res.end(collectionZipPayload);
+      return;
+    }
     if (req.url?.endsWith('/rename.zip') && renameZipPayload) {
       res.writeHead(200, { 'Content-Length': renameZipPayload.length });
       res.end(renameZipPayload);
@@ -63,6 +69,7 @@ afterEach(async () => {
 });
 
 let renameZipPayload: Buffer | null = null;
+let collectionZipPayload: Buffer | null = null;
 
 async function serveRenameZip(data: Buffer): Promise<void> {
   renameZipPayload = makeZip([{ name: 'renamed_old.ttf', data }]);
@@ -280,6 +287,52 @@ describe('.install', () => {
     const output = promptLines.join('\n');
     expect(output).toContain("Formula 'dejavu-typo' not found. Did you mean?");
     expect(output).toMatch(/\[0\] DejaVu/);
+  });
+
+
+  it('returns path of collection file', async () => {
+    const env = await testEnv();
+    envs.push(env);
+    await writeFormula(env, 'collection_pack', {
+      name: 'Collection Pack',
+      font_collections: [
+        {
+          filename: 'Pack.ttc',
+          fonts: [
+            {
+              name: 'Pack Face One',
+              styles: [
+                { family_name: 'Pack Face One', type: 'Regular', full_name: 'Pack Face One', font: 'Pack.ttc' },
+              ],
+            },
+            {
+              name: 'Pack Face Two',
+              styles: [
+                { family_name: 'Pack Face Two', type: 'Italic', full_name: 'Pack Face Two Italic', font: 'Pack.ttc' },
+              ],
+            },
+          ],
+        },
+      ],
+      resources: { 'c.zip': { urls: [`${baseUrl}/collection.zip`] } },
+    });
+    collectionZipPayload = makeZip([
+      {
+        name: 'Pack.ttc',
+        data: makeTtc([
+          { family: 'Pack Face One', subfamily: 'Regular', fullName: 'Pack Face One' },
+          { family: 'Pack Face Two', subfamily: 'Italic', fullName: 'Pack Face Two Italic' },
+        ]),
+      },
+    ]);
+    const paths = await Font.install('Pack Face Two', env.ctx, { confirmation: 'yes' });
+    expect(paths).toHaveLength(1);
+    expect(paths[0]!.endsWith('Pack.ttc')).toBe(true);
+
+    // Uninstalling by the non-first face's family removes the file.
+    const removed = await Font.uninstall('Pack Face Two', env.ctx);
+    expect(removed).toHaveLength(1);
+    await expect(fsp.access(paths[0]!)).rejects.toBeTruthy();
   });
 
 describe('.uninstall', () => {
