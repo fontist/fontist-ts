@@ -9,7 +9,7 @@ import {
   ManifestCouldNotBeReadError,
   MissingFontError,
 } from '../../src/errors/errors.js';
-import { cleanup, fontFileFor, makeTtf, makeZip, testEnv, writeFormula, type TestEnv } from '../helpers/index.js';
+import { fontFileFor, makeTtf, makeZip, testEnv, writeFormula, type TestEnv } from '../helpers/index.js';
 
 let baseUrl = '';
 

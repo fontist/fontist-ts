@@ -12,7 +12,7 @@ import {
   TranscodeLicenseNotAcceptedError,
 } from '../../src/errors/errors.js';
 import { FormatSpec } from '../../src/formula/formatSpec.js';
-import { cleanup, fontFileFor, makeZip, testEnv, writeFormula, type TestEnv } from '../helpers/index.js';
+import { fontFileFor, makeZip, testEnv, writeFormula, type TestEnv } from '../helpers/index.js';
 
 let server: Server;
 let baseUrl: string;

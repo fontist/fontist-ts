@@ -2,13 +2,12 @@
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  BaseLocation,
   FontistLocation,
   SystemLocation,
   UserLocation,
   createInstallLocation,
 } from '../../src/locations/installLocation.js';
-import { cleanup, testEnv, type TestEnv } from '../helpers/index.js';
+import { testEnv, type TestEnv } from '../helpers/index.js';
 
 const envs: TestEnv[] = [];
 

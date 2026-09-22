@@ -3,7 +3,7 @@ import { promises as fsp } from 'node:fs';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SystemFont } from '../../src/system/systemFont.js';
-import { cleanup, makeTtf, testEnv, type TestEnv } from '../helpers/index.js';
+import { makeTtf, testEnv, type TestEnv } from '../helpers/index.js';
 
 const envs: TestEnv[] = [];
 

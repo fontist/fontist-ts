@@ -5,7 +5,6 @@ import { promises as fsp } from 'node:fs';
 import * as path from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { Font } from '../../src/api/font.js';
-import { FormulaRepository } from '../../src/formula/formulaRepository.js';
 import { FontModel } from '../../src/formula/models.js';
 import {
   FontistVersionError,

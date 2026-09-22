@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { Formula } from '../../src/formula/formula.js';
 import { FormulaRepository } from '../../src/formula/formulaRepository.js';
 import { FormatSpec } from '../../src/formula/formatSpec.js';
-import { cleanup, testEnv, writeFormula, type TestEnv } from '../helpers/index.js';
+import { testEnv, writeFormula, type TestEnv } from '../helpers/index.js';
 
 const envs: TestEnv[] = [];
 
