@@ -85,6 +85,13 @@ function formatSpecFrom(flags: CliFlags): FormatSpec | null {
   return spec.hasConstraints() ? spec : null;
 }
 
+
+function parseSizeLimit(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function locationOption(flags: CliFlags): 'fontist' | 'user' | 'system' | null {
   if (!flags.location) return null;
   if (flags.location === 'fontist' || flags.location === 'user' || flags.location === 'system') {
@@ -141,7 +148,7 @@ installSpecOptions(program.command('install'))
           version: flags.version ?? null,
           smallest: flags.smallest ?? false,
           newest: flags.newest ?? false,
-          sizeLimitMb: flags.sizeLimit ? Number.parseInt(flags.sizeLimit, 10) : null,
+          sizeLimitMb: parseSizeLimit(flags.sizeLimit),
           updateFontconfig: flags.updateFontconfig ?? false,
           location: locationOption(flags),
           formatSpec: spec,

@@ -106,13 +106,14 @@ function isUnsafeNameChar(ch: string): boolean {
 }
 
 function urlFileName(url: string, sourcePath: string): string {
-  const fromSource = path.basename(sourcePath);
-  if (fromSource.length > 0 && fromSource !== '.' && fromSource !== '/') return fromSource;
   try {
     const parsed = new URL(url);
     const name = path.basename(parsed.pathname);
-    return name.length > 0 ? name : 'download';
+    if (name.length > 0 && name !== '.') return name;
   } catch {
-    return 'download';
+    // not a parsable URL; fall back to the source file name
   }
+  const fromSource = path.basename(sourcePath);
+  if (fromSource.length > 0 && fromSource !== '.' && fromSource !== '/') return fromSource;
+  return 'download';
 }

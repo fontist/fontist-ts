@@ -1,17 +1,37 @@
 import { promises as fsp } from 'node:fs';
 import * as path from 'node:path';
 import type { FontistContext } from '../context.js';
-import { FORMULAS_REPO_URL } from '../paths.js';
+import { FORMULAS_REPO_URL, FORMULAS_VERSION } from '../paths.js';
 import { RepoCouldNotBeUpdatedError } from '../errors/errors.js';
 import { GitClient } from './gitClient.js';
 
 /** Manages the main formulas repository clone at
- * `versions/v5/formulas` (shallow clone of branch v5). */
+ * `versions/v5/formulas`. Remote and branch default to fontist/formulas@v5
+ * and can be redirected for mirrors and air-gapped installs. */
 export class FormulasRepo {
   private readonly ctx: FontistContext;
+  private readonly url: string;
+  private readonly branch: string;
 
   constructor(ctx: FontistContext) {
     this.ctx = ctx;
+    this.url = ctx.env.FONTIST_FORMULAS_REPO_URL || FORMULAS_REPO_URL;
+    this.branch = ctx.env.FONTIST_FORMULAS_REPO_BRANCH || FORMULAS_VERSION;
+  }
+
+  /** Clones the repository when it is missing (Ruby's lazy bootstrap).
+   * Clone failures are warned and swallowed: the following font lookup
+   * produces the meaningful error, and offline behavior stays unchanged. */
+  async ensure(): Promise<void> {
+    if (await this.exists()) return;
+    try {
+      await this.update();
+    } catch (err) {
+      this.ctx.ui.warn(
+        `Formulas repository is not available (${String(err)}); ` +
+          'run `fontist update` to initialize it.',
+      );
+    }
   }
 
   repoPath(): string {
@@ -30,8 +50,8 @@ export class FormulasRepo {
   /** Ensures the repo is cloned and up to date; recreates the origin remote
    * when the clone is missing it (mirrors Ruby's Update flow). */
   async update(): Promise<void> {
-    const branch = 'v5';
-    const url = FORMULAS_REPO_URL;
+    const branch = this.branch;
+    const url = this.url;
     await fsp.mkdir(path.dirname(this.repoPath()), { recursive: true });
     const git = new GitClient(this.repoPath());
     try {
@@ -80,4 +100,9 @@ export class FormulasRepo {
     ]);
     return { url, branch, revision, updatedAt };
   }
+}
+
+/** Lazily bootstraps the formulas repository (no-op when present). */
+export async function ensureFormulasAvailable(ctx: FontistContext): Promise<void> {
+  await new FormulasRepo(ctx).ensure();
 }

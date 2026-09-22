@@ -3,7 +3,7 @@ import type { FormatMatcher } from '../formula/formatMatcher.js';
 import { FontistIndex, SystemIndex, UserIndex } from '../index/installed/collectionIndexes.js';
 import { scanFontPaths } from './pathScanning.js';
 import { systemFontPaths } from './systemFontsData.js';
-import { defaultUserFontPath } from '../locations/installLocation.js';
+import { defaultUserFontPath } from './fontDirs.js';
 
 export interface FoundStyle {
   path: string;
