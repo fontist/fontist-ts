@@ -15,14 +15,15 @@ import { FormulaIndexRegistry } from '../index/formula/formulaFontIndex.js';
 import { FontistIndex, SystemIndex, UserIndex } from '../index/installed/collectionIndexes.js';
 import {
   createInstallLocation,
-  defaultUserFontPath,
   type BaseLocation,
   type InstallLocationType,
 } from '../locations/installLocation.js';
 import { FontInstaller } from '../installer/fontInstaller.js';
 import { Fontconfig } from '../fontconfig/fontconfig.js';
 import { SystemFont } from '../system/systemFont.js';
+import { defaultUserFontPath } from '../system/fontDirs.js';
 import { FormulaSuggestion } from '../formula/formulaSuggestion.js';
+import { ensureFormulasAvailable } from '../repo/formulasRepo.js';
 import { mkdirp } from '../util/fsx.js';
 
 export interface FontOptions {
@@ -59,6 +60,7 @@ export class Font {
   }
 
   static async find(name: string, ctx: FontistContext): Promise<string[]> {
+    await ensureFormulasAvailable(ctx);
     return new Font(ctx, { name }).doFind();
   }
 
@@ -67,6 +69,7 @@ export class Font {
     ctx: FontistContext,
     options: FontOptions = {},
   ): Promise<string[]> {
+    await ensureFormulasAvailable(ctx);
     return new Font(ctx, { ...options, name }).doInstall();
   }
 
@@ -89,10 +92,12 @@ export class Font {
   }
 
   static async uninstall(name: string, ctx: FontistContext): Promise<string[]> {
+    await ensureFormulasAvailable(ctx);
     return new Font(ctx, { name }).doUninstall();
   }
 
   static async status(name: string | null, ctx: FontistContext): Promise<string[]> {
+    await ensureFormulasAvailable(ctx);
     return new Font(ctx, { name }).doStatus();
   }
 
@@ -100,10 +105,12 @@ export class Font {
     name: string | null,
     ctx: FontistContext,
   ): Promise<Record<string, Record<string, Record<string, boolean>>>> {
+    await ensureFormulasAvailable(ctx);
     return new Font(ctx, { name }).doList();
   }
 
   static async all(ctx: FontistContext): Promise<Formula[]> {
+    await ensureFormulasAvailable(ctx);
     const repository = new FormulaRepository(ctx);
     const formulas = await repository.all();
     return formulas.filter((formula) => this.isSupportedFormula(formula, ctx));

@@ -8,7 +8,7 @@ import {
 } from '../errors/errors.js';
 import { type ModelDefinition, SerializableModel } from '../serialization/model.js';
 import { FormatSpec } from '../formula/formatSpec.js';
-import type { FormatMatcher } from '../formula/formatMatcher.js';
+import { FormatMatcher } from '../formula/formatMatcher.js';
 import { Font, type FontOptions } from './font.js';
 import { SystemFont, type FoundStyle } from '../system/systemFont.js';
 import { FormulaRepository } from '../formula/formulaRepository.js';
@@ -132,7 +132,10 @@ export class Manifest {
     const response: ManifestResponseFont[] = [];
     for (const font of this.fonts) {
       const styles = font.styles.length > 0 ? font.styles : [null];
-      const matcher = options.formatMatcher ?? null;
+      const spec = font.formatSpec();
+      const matcher = spec.hasConstraints()
+        ? new FormatMatcher(spec)
+        : options.formatMatcher ?? null;
       const groups = new Map<string, ManifestResponseStyle>();
       for (const style of styles) {
         let found: FoundStyle[];

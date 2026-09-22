@@ -1,6 +1,4 @@
-import * as os from 'node:os';
 import * as path from 'node:path';
-import type { FontistPlatform } from '../ui/ui.js';
 import type { FontistContext } from '../context.js';
 import type { Formula } from '../formula/formula.js';
 import { FontistError } from '../errors/errors.js';
@@ -8,6 +6,7 @@ import { FontistIndex, SystemIndex, UserIndex } from '../index/installed/collect
 import type { BaseFontCollectionIndex } from '../index/installed/baseFontCollectionIndex.js';
 import { copyFileTo, mkdirp, pathExists, removeFile } from '../util/fsx.js';
 import { macosImportSystemPathSync } from './macosFramework.js';
+import { defaultUserFontPath } from '../system/fontDirs.js';
 
 export type InstallLocationType = 'fontist' | 'user' | 'system';
 
@@ -216,18 +215,3 @@ export function createInstallLocation(
   }
 }
 
-export function defaultUserFontPath(
-  platform: FontistPlatform,
-  env: NodeJS.ProcessEnv,
-): string {
-  switch (platform) {
-    case 'macos':
-      return path.join(os.homedir(), 'Library', 'Fonts');
-    case 'linux':
-      return path.join(os.homedir(), '.local', 'share', 'fonts');
-    case 'windows': {
-      const localAppData = env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
-      return path.join(localAppData, 'Microsoft', 'Windows', 'Fonts');
-    }
-  }
-}
