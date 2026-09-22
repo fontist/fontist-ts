@@ -171,6 +171,42 @@ describe('CLI', () => {
     await expect(fsp.access(env.ctx.paths.formulaDefaultFamilyIndexPath())).resolves.toBeUndefined();
   });
 
+  it('manifest locations reports installed font paths', async () => {
+    await freshEnv();
+    await run(argv('install "Cli Sans" -a -p'));
+    const manifestPath = path.join(env.home, 'manifest.yml');
+    await fsp.writeFile(manifestPath, 'Cli Sans:\n  styles:\n    - Regular\n');
+    env.ui.lines.length = 0;
+    const code = await run(argv(`manifest locations ${manifestPath}`));
+    expect(code).toBe(0);
+    const output = env.ui.lines.join('\n');
+    expect(output).toContain('CliSans-Regular.ttf');
+    expect(output).toContain('"type": "Regular"');
+  });
+
+  it('manifest install exits 5 for a missing manifest file', async () => {
+    await freshEnv();
+    const code = await run(argv(`manifest install ${path.join(env.home, 'missing.yml')}`));
+    expect(code).toBe(5);
+  });
+
+  it('fontconfig update runs fc-cache via PATH', async () => {
+    await freshEnv();
+    const bin = path.join(env.home, 'bin');
+    const marker = path.join(env.home, 'fc-cache-ran');
+    await fsp.mkdir(bin, { recursive: true });
+    const script = path.join(bin, 'fc-cache');
+    await fsp.writeFile(script, `#!/bin/sh\ntouch "${marker}"\n`);
+    await fsp.chmod(script, 0o755);
+    const code = await runCli(
+      argv('fontconfig update'),
+      { FONTIST_PATH: env.ctx.paths.fontistPath(), PATH: bin } as NodeJS.ProcessEnv,
+      env.ui,
+    );
+    expect(code).toBe(0);
+    await expect(fsp.access(marker)).resolves.toBeUndefined();
+  });
+
   it('repo list/info work against the private formulas dir', async () => {
     await freshEnv();
     env.ui.lines.length = 0;
