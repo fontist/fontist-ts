@@ -482,6 +482,14 @@ const isMain = process.argv[1]
   : false;
 
 if (isMain) {
+  // Piping into `head`/`grep -m1` closes stdout early; exit quietly instead
+  // of crashing with an unhandled EPIPE.
+  for (const stream of [process.stdout, process.stderr]) {
+    stream.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EPIPE') process.exit(0);
+      throw err;
+    });
+  }
   void runCli(process.argv.slice(2)).then((code) => {
     process.exitCode = code;
   });
