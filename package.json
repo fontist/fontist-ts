@@ -1,5 +1,5 @@
 {
-  "name": "fontist",
+  "name": "@fontist/fontist",
   "version": "1.0.0",
   "description": "Install openly-licensed fonts. TypeScript port of the Fontist gem, driven by fontist formulas.",
   "license": "BSD-2-Clause",
@@ -60,5 +60,8 @@
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.18.0",
     "vitest": "^2.1.8"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

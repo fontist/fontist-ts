@@ -12,8 +12,8 @@ support).
 ## Install
 
 ```bash
-npm install fontist        # library
-npx fontist --help         # CLI without installing
+npm install @fontist/fontist   # library
+npx @fontist/fontist --help    # CLI without installing
 ```
 
 Requires Node >= 20.
@@ -63,7 +63,7 @@ SFX executables through a system 7-Zip binary (`7z`/`7zz`) when available.
 ## Library API
 
 ```ts
-import { Font, Manifest, createContext } from 'fontist';
+import { Font, Manifest, createContext } from '@fontist/fontist';
 
 const ctx = await createContext();
 
