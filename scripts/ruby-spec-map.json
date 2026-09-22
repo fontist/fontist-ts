@@ -1,5 +1,8 @@
 {
-  "rubySpecDir": "../fontist/spec",
+  "rubySpecDir": [
+    "../fontist/spec",
+    "fontist/spec"
+  ],
   "note": "Maps every Ruby spec file to its TypeScript mirror. mirrored = dedicated TS mirror; partial = representative coverage; not-ported = subsystem intentionally absent (reason given).",
   "entries": {
     "fontist_spec.rb": {

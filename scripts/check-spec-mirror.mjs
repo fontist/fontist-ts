@@ -9,7 +9,17 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const registry = JSON.parse(readFileSync(join(root, 'scripts/ruby-spec-map.json'), 'utf8'));
-const rubySpecDir = join(root, registry.rubySpecDir);
+const candidates = (Array.isArray(registry.rubySpecDir) ? registry.rubySpecDir : [registry.rubySpecDir]).map(
+  (dir) => join(root, dir),
+);
+const rubySpecDir = candidates.find((dir) => existsSync(dir));
+if (!rubySpecDir) {
+  console.error(
+    `spec mirror check failed: Ruby gem spec directory not found (tried ${candidates.join(', ')}). ` +
+      'Check out the fontist/fontist repository next to (or inside) this checkout.',
+  );
+  process.exit(1);
+}
 
 function listRubySpecs(dir) {
   const out = [];
