@@ -203,7 +203,7 @@
     "fontist/cli_spec.rb": {
       "status": "partial",
       "ts": "spec/cli.spec.ts",
-      "note": "existing suite incl. manifest and fontconfig commands, exit codes"
+      "note": "existing suite incl. manifest and fontconfig commands, exit codes; migrate-formulas, create-formula, rebuild-index, macos-catalogs, install format/prefer-format/transcode flags mirrored in spec/cli.spec.ts; migrate-formulas, create-formula, rebuild-index, macos-catalogs, index CLI, install format/prefer-format/transcode flags mirrored in spec/cli.spec.ts"
     },
     "fontist/cache_cli_spec.rb": {
       "status": "partial",

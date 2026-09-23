@@ -39,6 +39,10 @@ export class SystemIndexFont {
   get preferredFamilyName(): string | null {
     return this.data.preferred_family_name;
   }
+
+  get preferredSubfamilyName(): string | null {
+    return this.data.preferred_subfamily_name;
+  }
   get format(): string | null {
     return this.data.format;
   }
@@ -202,6 +206,11 @@ export class SystemIndexFontCollection {
     this.removeByPath(font.path);
     this.fonts.push(font);
     this.lastScanTime = Date.now();
+  }
+
+  /** All indexed entries (Ruby collection.fonts). */
+  allFonts(): SystemIndexFont[] {
+    return this.fonts;
   }
 
   removeByPath(fontPath: string): boolean {
