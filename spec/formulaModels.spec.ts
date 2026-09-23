@@ -1,4 +1,3 @@
-// Mirrors spec/fontist/macos_ondemand_fonts_spec.rb and spec/fontist/windows_ondemand_fonts_spec.rb (Ruby gem) among others: platform gating for macos/apple_cdn and windows_fod formulas is exercised by the formula model and installer suites.
 import { describe, expect, it } from 'vitest';
 import { Formula, keyFromPath, titleize } from '../src/formula/formula.js';
 import { GoogleImportSource, MacosImportSource } from '../src/formula/importSources.js';

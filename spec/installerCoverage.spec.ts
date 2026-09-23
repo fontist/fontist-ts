@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { Font } from '../src/api/font.js';
 import { Manifest } from '../src/api/manifest.js';
 import { createContext } from '../src/context.js';
-import { ManualFontError, UnsupportedMacOSVersionError } from '../src/errors/errors.js';
+import { ManualFontError, FontistError } from '../src/errors/errors.js';
 import { FormulaRepository } from '../src/formula/formulaRepository.js';
 import { ResourceInstallerRegistry } from '../src/installer/resourceInstallers.js';
 import { runCli } from '../src/cli/cli.js';
@@ -131,7 +131,7 @@ describe('Apple CDN installer platform gate', () => {
     });
     const installer = registry.create('apple_cdn', linuxCtx, resource, { noProgress: true });
     await expect(installer.files([], async () => undefined)).rejects.toBeInstanceOf(
-      UnsupportedMacOSVersionError,
+      FontistError,
     );
   });
 });

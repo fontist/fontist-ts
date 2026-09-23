@@ -1,7 +1,8 @@
 import type { FontistPlatform } from '../ui/ui.js';
+import type { MacosFrameworkInfo } from '../import/macos/frameworkMetadata.js';
 
 export class FontistError extends Error {
-  constructor(message: string) {
+  constructor(message?: string) {
     super(message);
     this.name = new.target.name;
   }
@@ -76,9 +77,10 @@ export class PlatformMismatchError extends FontError {
     public readonly currentPlatform: FontistPlatform,
   ) {
     super(
-      `Font "${font}" is not available for your platform: ${currentPlatform}` +
-        ` (requires: ${requiredPlatforms.join(', ')}).` +
-        ` This font cannot be installed on your system.`,
+      `Font '${font}' is only available for: ${requiredPlatforms.join(', ')}. ` +
+        `Your current platform is: ${currentPlatform}. ` +
+        `This font is licensed exclusively for the specified platform(s) and ` +
+        `cannot be installed on your system.`,
       font,
     );
   }
@@ -111,9 +113,65 @@ export class FontistVersionError extends FontistError {
   }
 }
 
-export class WindowsFodInstallError extends FontistError {}
+export class WindowsFodInstallError extends FontistError {
+  constructor(
+    public readonly capabilityName: string,
+    stderr?: string | null,
+  ) {
+    super(buildWindowsFodMessage(capabilityName, stderr));
+  }
+}
 
-export class UnsupportedMacOSVersionError extends FontistError {}
+function buildWindowsFodMessage(capName: string, stderr: string | null | undefined): string {
+  let msg = `Failed to install Windows font capability '${capName}'.`;
+  if (stderr && stderr.trim() !== '') msg += `\n${stderr}`;
+  msg +=
+    '\n\nPossible causes:' +
+    '\n  - No internet connection (Windows Update required)' +
+    '\n  - Insufficient permissions (admin required on Windows 10)' +
+    '\n  - WSUS/SCCM policy blocking Features on Demand';
+  return msg;
+}
+
+export class UnsupportedMacOSVersionError extends FontistError {
+  constructor(detectedVersion: string | null, availableFrameworks: ReadonlyMap<number, MacosFrameworkInfo>) {
+    super(buildMacosVersionMessage(detectedVersion, availableFrameworks));
+  }
+}
+
+function buildMacosVersionMessage(
+  version: string | null,
+  frameworks: ReadonlyMap<number, MacosFrameworkInfo>,
+): string {
+  const formatted = [...frameworks.entries()]
+    .map(([num, meta]) => {
+      const min = meta.min_macos_version;
+      const max = meta.max_macos_version ?? '+';
+      return `  Font${num}: ${min}-${max} (${meta.description})`;
+    })
+    .join('\n');
+  return [
+    `Unsupported macOS version: ${version}`,
+    '',
+    'Your macOS version is not supported by any font framework.',
+    '',
+    'Supported frameworks:',
+    formatted,
+    '',
+    'Options:',
+    '',
+    '1. Override platform (if you know your framework):',
+    '   export FONTIST_PLATFORM_OVERRIDE="macos-font<N>"',
+    '   Example: export FONTIST_PLATFORM_OVERRIDE="macos-font7"',
+    '',
+    '2. Install to Fontist library (works with any override):',
+    '   fontist install "Font Name" --macos-fonts-location=fontist-library',
+    '',
+    'Note: Non-macOS-platform-tagged fonts work normally.',
+    '',
+    'Report issues: https://github.com/fontist/fontist/issues',
+  ].join('\n');
+}
 
 export class TranscodeLicenseNotAcceptedError extends FontistError {
   constructor() {

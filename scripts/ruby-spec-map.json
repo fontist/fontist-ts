@@ -321,14 +321,14 @@
       "note": "WindowsFodMetadata lookups and WindowsImport FOD formula generation"
     },
     "fontist/macos_ondemand_fonts_spec.rb": {
-      "status": "partial",
-      "ts": "spec/formulaModels.spec.ts",
-      "note": "apple_cdn platform gating is formula/installer behavior; catalog import tooling now mirrored"
+      "status": "mirrored",
+      "ts": "spec/mirror/platform_gating_spec.ts",
+      "note": "apple_cdn platform gating, PlatformMismatchError text, platform_restriction_message, framework gating via Utils::System port"
     },
     "fontist/windows_ondemand_fonts_spec.rb": {
-      "status": "partial",
-      "ts": "spec/formulaModels.spec.ts",
-      "note": "windows_fod platform gating is formula/installer behavior; FOD generation now mirrored"
+      "status": "mirrored",
+      "ts": "spec/mirror/platform_gating_spec.ts",
+      "note": "windows_fod resource dispatch: Get/Add-WindowsCapability via injected runner, windir font delivery, WindowsFodInstallError message"
     },
     "fontist/resource_collection_spec.rb": {
       "status": "not-ported",
