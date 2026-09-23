@@ -5,6 +5,7 @@ import { FontFile } from '../../fonts/fontFile.js';
 import type { FormatMatcher } from '../../formula/formatMatcher.js';
 import { mapWithConcurrency } from '../../util/concurrency.js';
 import { withLock } from '../../util/locking.js';
+import { SfntCollection } from '../../fonts/sfnt/collection.js';
 import type {
   SystemIndexFontCollection} from './systemIndexFont.js';
 import {
@@ -189,8 +190,10 @@ export abstract class BaseFontCollectionIndex {
     mtimeMs: number,
   ): Promise<SystemIndexFont[]> {
     let fontFile: FontFile;
+    let bytes: Buffer;
     try {
-      fontFile = await FontFile.fromPath(fontPath);
+      bytes = await fsp.readFile(fontPath);
+      fontFile = FontFile.fromBytes(bytes, fontPath);
     } catch (err) {
       this.ctx.ui.error(
         `${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}` +
@@ -200,7 +203,7 @@ export abstract class BaseFontCollectionIndex {
     }
     const faces =
       fontFile.format === 'ttc' || fontFile.format === 'otc'
-        ? await this.collectionFaces(fontPath)
+        ? this.collectionFaces(fontPath, bytes)
         : [fontFile];
     const entries: SystemIndexFont[] = [];
     for (const face of faces) {
@@ -231,15 +234,14 @@ export abstract class BaseFontCollectionIndex {
     return entries;
   }
 
-  private async collectionFaces(fontPath: string): Promise<FontFile[]> {
-    const { FontFile: FF } = await import('../../fonts/fontFile.js');
-    const { SfntCollection } = await import('../../fonts/sfnt/collection.js');
-    const bytes = await fsp.readFile(fontPath);
+  /** Parses a collection once and yields one FontFile per face — reading
+   * the file again per face would make large system TTC scans quadratic. */
+  private collectionFaces(fontPath: string, bytes: Buffer): FontFile[] {
     const collection = new SfntCollection(bytes);
     const faces: FontFile[] = [];
     for (let index = 0; index < collection.faceCount(); index++) {
       try {
-        faces.push(await FF.fromPath(fontPath, { collectionIndex: index }));
+        faces.push(FontFile.fromBytes(bytes, fontPath, { collectionIndex: index }));
       } catch (err) {
         this.ctx.ui.debug(
           `Skipping corrupt/invalid font: ${path.basename(fontPath)}` +

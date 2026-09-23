@@ -203,6 +203,106 @@ describe('CLI', () => {
     await expect(fsp.access(env.ctx.paths.formulaDefaultFamilyIndexPath())).resolves.toBeUndefined();
   });
 
+  it('uninstall prints removal output and supports the remove alias', async () => {
+    await freshEnv();
+    await run(argv('install "Cli Sans" -a -p'));
+    env.ui.lines.length = 0;
+    expect(await run(argv('remove "Cli Sans"'))).toBe(0);
+    const output = env.ui.lines.join('\n');
+    expect(output).toContain('These fonts are removed:');
+    expect(output).toContain('CliSans-Regular.ttf');
+  });
+
+  it('status with no installed fonts prints No font is installed and exits 3', async () => {
+    // The windows platform's font directories never exist on POSIX machines,
+    // so the installed-font search is genuinely empty here.
+    if (env) await cleanup(env);
+    env = await testEnv({ platform: 'windows' });
+    envs.push(env);
+    await writeFormula(env, 'cli_sans', {
+      name: 'Cli Sans Formula',
+      fonts: [
+        { name: 'Cli Sans', styles: [{ family_name: 'Cli Sans', type: 'Regular', full_name: 'Cli Sans Regular', font: 'CliSans-Regular.ttf' }] },
+      ],
+      resources: { 'cli.zip': { urls: [`${baseUrl}/cli.zip`] } },
+    });
+    env.ui.lines.length = 0;
+    expect(
+      await runCli(
+        argv('status'),
+        { FONTIST_PATH: env.ctx.paths.fontistPath(), FONTIST_PLATFORM_OVERRIDE: 'windows' } as NodeJS.ProcessEnv,
+        env.ui,
+      ),
+    ).toBe(3);
+    expect(env.ui.lines.join('\n')).toContain('No font is installed.');
+  });
+
+  it('update prints the success message against a local remote', async () => {
+    const { promisify } = await import('node:util');
+    const execFile = promisify((await import('node:child_process')).execFile);
+    const fsp = await import('node:fs/promises');
+    const os = await import('node:os');
+    const remote = await fsp.mkdtemp(await import('node:path').then((p) => p.join(os.tmpdir(), 'cli-remote-')));
+    await execFile('git', ['init', '--bare', '-b', 'v5', remote]);
+    const seed = await fsp.mkdtemp(await import('node:path').then((p) => p.join(os.tmpdir(), 'cli-seed-')));
+    await execFile('git', ['init', '-b', 'v5'], { cwd: seed });
+    await execFile('git', ['config', 'user.email', 'spec@example.com'], { cwd: seed });
+    await execFile('git', ['config', 'user.name', 'Spec'], { cwd: seed });
+    await fsp.mkdir(await import('node:path').then((p) => p.join(seed, 'Formulas')), { recursive: true });
+    await fsp.writeFile(
+      await import('node:path').then((p) => p.join(seed, 'Formulas', 'cli_sans.yml')),
+      'name: Cli Sans\nfonts:\n- name: Cli Sans\n  styles:\n  - family_name: Cli Sans\n    type: Regular\n    font: CliSans-Regular.ttf\n',
+    );
+    await execFile('git', ['add', 'Formulas/cli_sans.yml'], { cwd: seed });
+    await execFile('git', ['commit', '-m', 'seed'], { cwd: seed });
+    await execFile('git', ['push', remote, 'v5'], { cwd: seed });
+
+    // A clean env: pre-existing formulas in the repo path would make update()
+    // treat the directory as an existing (non-git) checkout.
+    if (env) await cleanup(env);
+    env = await testEnv();
+    envs.push(env);
+    env.ui.lines.length = 0;
+    const code = await runCli(
+      argv('update'),
+      {
+        FONTIST_PATH: env.ctx.paths.fontistPath(),
+        FONTIST_FORMULAS_REPO_URL: remote,
+        FONTIST_FORMULAS_REPO_BRANCH: 'v5',
+      } as NodeJS.ProcessEnv,
+      env.ui,
+    );
+    expect(code).toBe(0);
+    expect(env.ui.lines.join('\n')).toContain('Formulas have been successfully updated.');
+    await fsp.rm(remote, { recursive: true, force: true });
+    await fsp.rm(seed, { recursive: true, force: true });
+  });
+
+  it('find --variable lists variable resources as JSON', async () => {
+    await freshEnv();
+    await writeFormula(env, 'mono_var', {
+      name: 'Mono Var',
+      schema_version: 5,
+      fonts: [
+        { name: 'Mono Var', styles: [{ family_name: 'Mono Var', type: 'Regular', font: 'MonoVar.ttf' }] },
+      ],
+      resources: {
+        var_ttf: { urls: ['https://example.invalid/v.ttf'], format: 'ttf', variable_axes: ['wght'] },
+      },
+    });
+    env.ui.lines.length = 0;
+    expect(await run(argv('find --variable --json'))).toBe(0);
+    const parsed = JSON.parse(env.ui.lines.join('\n')) as { name: string; axes: string[] }[];
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toMatchObject({ name: 'Mono Var', resource: 'var_ttf', axes: ['wght'] });
+  });
+
+  it('find without a selector errors', async () => {
+    await freshEnv();
+    expect(await run(argv('find'))).toBe(1);
+    expect(env.ui.lines.join('\n')).toContain('Please specify --axes, --variable, or --category');
+  });
+
   it('manifest locations reports installed font paths', async () => {
     await freshEnv();
     await run(argv('install "Cli Sans" -a -p'));

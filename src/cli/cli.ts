@@ -11,13 +11,16 @@ import { DownloadCache } from '../download/downloadCache.js';
 import { InvalidConfigAttributeError } from '../errors/errors.js';
 import { FormatSpec, parseVariableAxes } from '../formula/formatSpec.js';
 import { FormulaRepository } from '../formula/formulaRepository.js';
+import type { FontMatch } from '../formula/fontFinder.js';
+import { FontFinder } from '../formula/fontFinder.js';
+import { ensureFormulasAvailable } from '../repo/formulasRepo.js';
 import { Fontconfig } from '../fontconfig/fontconfig.js';
 import { FormulaIndexRegistry } from '../index/formula/formulaFontIndex.js';
 import { FormulasRepo } from '../repo/formulasRepo.js';
 import { PrivateRepos } from '../repo/privateRepos.js';
 import { updateFormulas } from '../repo/update.js';
 import { UI } from '../ui/ui.js';
-import { exitCodeFor, sizeLimitHint } from './exitCodes.js';
+import { exitCodeFor, sizeLimitHint, STATUS_MISSING_FONT_ERROR } from './exitCodes.js';
 
 interface CliFlags {
   verbose?: boolean;
@@ -37,6 +40,10 @@ interface CliFlags {
   preferVariable?: boolean;
   collectionIndex?: string;
   interactive?: boolean;
+  axes?: string;
+  variable?: boolean;
+  category?: string;
+  json?: boolean;
 }
 
 
@@ -166,18 +173,24 @@ installSpecOptions(program.command('install'))
 
 program
     .command('uninstall')
+    .alias('remove')
     .arguments('<font...>')
     .description('Uninstall one or more fonts')
     .action(async (fonts: string[], flags: CliFlags) => {
       await withContext(flags, async (ctx) => {
         let lastError: Error | null = null;
+        const removed: string[] = [];
         for (const font of fonts) {
           try {
-            await Font.uninstall(font, ctx);
+            removed.push(...(await Font.uninstall(font, ctx)));
           } catch (err) {
             lastError = err as Error;
             reportError(ctx, lastError, flags);
           }
+        }
+        if (removed.length > 0) {
+          ctx.ui.say('These fonts are removed:');
+          ctx.ui.say(removed.join('\n'));
         }
         if (lastError) process.exitCode = exitCodeFor(lastError) ?? 1;
       });
@@ -190,6 +203,11 @@ program
     .action(async (font: string | undefined, flags: CliFlags) => {
       await withContext(flags, async (ctx) => {
         const paths = await Font.status(font ?? null, ctx);
+        if (paths.length === 0) {
+          ctx.ui.error('No font is installed.');
+          process.exitCode = STATUS_MISSING_FONT_ERROR;
+          return;
+        }
         if (!font) {
           for (const fontPath of paths) ctx.ui.say(fontPath);
         }
@@ -222,6 +240,7 @@ program
       await withContext(flags, async (ctx) => {
         try {
           await updateFormulas(ctx);
+          ctx.ui.say('Formulas have been successfully updated.');
         } catch (err) {
           reportError(ctx, err as Error, flags);
           process.exitCode = exitCodeFor(err as Error) ?? 1;
@@ -245,6 +264,52 @@ program
         } catch (err) {
           reportError(ctx, err as Error, flags);
           process.exitCode = exitCodeFor(err as Error) ?? 1;
+        }
+      });
+    });
+
+program
+    .command('find')
+    .description('Find fonts by capabilities')
+    .option('--axes <axes>', "Variable axes to match (comma-separated, e.g., 'wght,wdth')")
+    .option('--variable', 'Find all variable fonts')
+    .option('--category <category>', 'Filter by category (sans-serif, serif, monospace, display)')
+    .option('--format <format>', 'Filter by format (ttf, otf, woff2)')
+    .option('--json', 'Output as JSON')
+    .action(async (flags: CliFlags) => {
+      await withContext(flags, async (ctx) => {
+        await ensureFormulasAvailable(ctx);
+        const repository = new FormulaRepository(ctx);
+        const formulas = (await repository.all()).filter((formula) =>
+          formula.compatibleWithPlatform(ctx.platform),
+        );
+        const finder = new FontFinder(formulas, {
+          formatSpec: flags.format ? FormatSpec.fromOptions({ format: flags.format }) : null,
+          category: flags.category ?? null,
+        });
+        let results: FontMatch[];
+        if (flags.variable) {
+          results = finder.variableFonts();
+        } else if (flags.axes) {
+          results = finder.byAxes(flags.axes.split(',').map((axis) => axis.trim()));
+        } else if (flags.category) {
+          results = finder.byCategory(flags.category);
+        } else {
+          ctx.ui.error('Please specify --axes, --variable, or --category');
+          process.exitCode = 1;
+          return;
+        }
+        if (flags.json) {
+          ctx.ui.say(JSON.stringify(results.map((match) => match.toObject()), null, 2));
+        } else {
+          for (const match of results) {
+            const data = match.toObject();
+            ctx.ui.say(
+              `${data.name}${data.format ? ` [${data.format}]` : ''}` +
+                `${Array.isArray(data.axes) && data.axes.length > 0 ? ` (${data.axes.join(',')})` : ''}` +
+                `${data.category ? ` {${data.category}}` : ''}`,
+            );
+          }
         }
       });
     });
