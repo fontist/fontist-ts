@@ -1,10 +1,16 @@
 import * as path from 'node:path';
+import { existsSync } from 'node:fs';
 import type { FontistContext } from '../context.js';
 import type { Resource } from '../formula/models.js';
 import {
+  FontistError,
   InvalidResourceError,
-  UnsupportedMacOSVersionError,
+  WindowsFodInstallError,
 } from '../errors/errors.js';
+import {
+  runPowershell,
+  type RunPowershell,
+} from '../system/systemUtils.js';
 import { Archive } from '../extract/archive.js';
 import { Downloader } from '../download/downloader.js';
 
@@ -83,7 +89,7 @@ export class GoogleResourceInstaller extends ResourceInstaller {
 export class AppleCdnResourceInstaller extends ResourceInstaller {
   async files(sourceNames: string[], onFile: (filePath: string) => Promise<void>): Promise<void> {
     if (this.ctx.platform !== 'macos') {
-      throw new UnsupportedMacOSVersionError(
+      throw new FontistError(
         'apple_cdn resources are only supported on macOS; use FONTIST_PLATFORM_OVERRIDE to test.',
       );
     }
@@ -99,20 +105,60 @@ export class AppleCdnResourceInstaller extends ResourceInstaller {
   }
 }
 
-/** Windows Font-on-Demand resource: downloads the FOD payload and extracts
- * it like any other archive (cab payloads need the 7-Zip extractor). */
+/** Windows Font-on-Demand resource: installs the Windows capability via
+ * PowerShell when missing, then yields the fonts Windows placed into
+ * %windir%/Fonts (Ruby WindowsFodResource). */
 export class WindowsFodResourceInstaller extends ResourceInstaller {
+  constructor(
+    ctx: FontistContext,
+    resource: Resource,
+    options: ResourceInstallOptions,
+    private readonly powershell: RunPowershell = defaultPowershell,
+  ) {
+    super(ctx, resource, options);
+  }
+
   async files(sourceNames: string[], onFile: (filePath: string) => Promise<void>): Promise<void> {
-    const archivePath = await this.download(this.resource.urls, this.resource.sha256, this.resource.fileSize);
-    const archive = new Archive();
-    const tmpDir = `${archivePath}-extracted`;
-    const extracted = await archive.extractAll(archivePath, tmpDir, { recursivePackages: true });
-    for (const file of extracted) {
-      if (sourceNames.length === 0 || sourceNames.includes(path.basename(file))) {
-        await onFile(file);
+    const capName = this.resource.capabilityName;
+    if (!capName) {
+      throw new FontistError('windows_fod resource requires capability_name');
+    }
+
+    if (!(await this.capabilityInstalled(capName))) {
+      this.ctx.ui.say(`Installing Windows font capability: ${capName}`);
+      const result = await this.powershell(
+        `Add-WindowsCapability -Online -Name '${psEscape(capName)}'`,
+      );
+      if (!result.success) {
+        throw new WindowsFodInstallError(capName, result.stderr);
+      }
+    }
+
+    const windir = this.ctx.env['windir'] ?? this.ctx.env['SystemRoot'] ?? 'C:/Windows';
+    const fontsDir = path.join(windir, 'Fonts');
+    for (const filename of sourceNames) {
+      const candidate = path.join(fontsDir, filename);
+      if (existsSync(candidate)) {
+        await onFile(candidate);
       }
     }
   }
+
+  private async capabilityInstalled(name: string): Promise<boolean> {
+    const result = await this.powershell(
+      `(Get-WindowsCapability -Online -Name '${psEscape(name)}').State`,
+    );
+    return result.stdout.trim() === 'Installed';
+  }
+}
+
+function psEscape(value: string): string {
+  // Escape single quotes for PowerShell single-quoted strings.
+  return value.replaceAll("'", "''");
+}
+
+function defaultPowershell(command: string): ReturnType<typeof runPowershell> {
+  return runPowershell(command);
 }
 
 /** Registry keyed by the formula resource `source` (OCP: new sources

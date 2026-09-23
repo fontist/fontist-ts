@@ -120,6 +120,18 @@ export {
   macosFrameworkMetadata,
 } from './import/macos/frameworkMetadata.js';
 export { WindowsFodMetadata } from './import/windows/windowsFodMetadata.js';
+export {
+  parsePlatformOverride,
+  userOs as systemUserOs,
+  macosVersion as systemMacosVersion,
+  parseMacosVersion,
+  versionInRange,
+  catalogVersionForMacos,
+  runPowershell,
+  type PlatformOverride,
+  type PowerShellResult,
+  type RunPowershell,
+} from './system/systemUtils.js';
 export { WindowsImport } from './import/windows/windowsImport.js';
 
 export {
