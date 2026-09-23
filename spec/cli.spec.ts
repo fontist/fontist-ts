@@ -5,7 +5,11 @@ import * as path from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { runCli } from '../src/cli/cli.js';
 import { DownloadCache } from '../src/download/downloadCache.js';
-import { cleanup, fontFileFor, makeTtc, makeZip, testEnv, writeFormula, type TestEnv } from './helpers/index.js';
+import { cleanup, fontFileFor, makeTtc, makeTtf, makeZip, testEnv, writeFormula, type TestEnv } from './helpers/index.js';
+import * as yaml from 'yaml';
+import * as os from 'node:os';
+
+const cwd = process.cwd();
 
 let server: Server;
 let baseUrl: string;
@@ -196,11 +200,109 @@ describe('CLI', () => {
     expect(await cache.get('x')).toBeNull();
   });
 
-  it('index rebuild rebuilds formula indexes', async () => {
+  it('rebuild-index rebuilds formula indexes', async () => {
     await freshEnv();
-    const code = await run(argv('index rebuild'));
+    const code = await run(argv('rebuild-index'));
     expect(code).toBe(0);
     await expect(fsp.access(env.ctx.paths.formulaDefaultFamilyIndexPath())).resolves.toBeUndefined();
+  });
+
+  it('index rebuild builds the system font index; path/list/clear manage it', async () => {
+    await freshEnv();
+    expect(await run(argv('index rebuild'))).toBe(0);
+    await expect(fsp.access(env.ctx.paths.systemIndexPath())).resolves.toBeUndefined();
+
+    env.ui.lines.length = 0;
+    expect(await run(argv('index path'))).toBe(0);
+    expect(env.ui.lines.join('\n')).toContain(env.ctx.paths.systemIndexPath());
+
+    env.ui.lines.length = 0;
+    expect(await run(argv('index list --format json --limit 5'))).toBe(0);
+    const listed = JSON.parse(env.ui.lines.join('\n'));
+    expect(Array.isArray(listed)).toBe(true);
+    expect(listed.length).toBeLessThanOrEqual(5);
+    for (const entry of listed) {
+      expect(entry).toHaveProperty('path');
+      expect(entry).toHaveProperty('family_name');
+    }
+
+    env.ui.lines.length = 0;
+    expect(await run(argv('index clear'))).toBe(0);
+    expect(env.ui.lines.join('\n')).toContain('System font index cleared');
+    await expect(fsp.access(env.ctx.paths.systemIndexPath())).rejects.toThrow();
+  });
+
+  it('index update reports missing index and no-change updates', async () => {
+    await freshEnv();
+    env.ui.lines.length = 0;
+    expect(await run(argv('index update'))).toBe(1);
+    expect(env.ui.lines.join('\n')).toContain("Run 'fontist index rebuild' to create it");
+
+    expect(await run(argv('index rebuild'))).toBe(0);
+    env.ui.lines.length = 0;
+    expect(await run(argv('index update'))).toBe(0);
+    const output = env.ui.lines.join('\n');
+    expect(output.match(/System font index updated|No changes detected/)).not.toBeNull();
+  });
+
+  it('migrate-formulas upgrades a v4 formula file', async () => {
+    await freshEnv();
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'cli-migrate-'));
+    try {
+      const formulaPath = path.join(dir, 'legacy.yml');
+      await fsp.writeFile(
+        formulaPath,
+        'name: Legacy\nresources:\n  res:\n    urls: ["https://example.com/MyFont-Regular.ttf"]\n',
+      );
+      const code = await run(argv(`migrate-formulas ${formulaPath}`));
+      expect(code).toBe(0);
+      const migrated = yaml.parse(await fsp.readFile(formulaPath, 'utf8'));
+      expect(migrated['schema_version']).toBe(5);
+      expect(migrated['resources']['res']['format']).toBe('ttf');
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('create-formula generates a formula from a local archive', async () => {
+    await freshEnv();
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'cli-create-'));
+    try {
+      const zipPath = path.join(dir, 'TestFont.zip');
+      await fsp.writeFile(
+        zipPath,
+        makeZip([
+          {
+            name: 'TestFont-Regular.ttf',
+            data: makeTtf({ family: 'TestFont', subfamily: 'Regular', fullName: 'TestFont' }),
+          },
+        ]),
+      );
+      process.chdir(dir);
+      try {
+        const code = await run(argv(`create-formula ${zipPath}`));
+        expect(code).toBe(0);
+        const formulaFile = path.join(dir, 'testfont.yml');
+        const formula = yaml.parse(await fsp.readFile(formulaFile, 'utf8'));
+        expect(formula['schema_version']).toBe(5);
+        expect(formula['fonts'][0]['name']).toBe('TestFont');
+        expect(env.ui.lines.join('\n')).toContain('formula has been successfully created');
+      } finally {
+        process.chdir(cwd);
+      }
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('macos-catalogs exits 1 with hints when no catalogs exist', async () => {
+    await freshEnv();
+    env.ui.lines.length = 0;
+    const code = await run(argv('macos-catalogs'));
+    expect(code).toBe(1);
+    const output = env.ui.lines.join('\n');
+    expect(output).toContain('No macOS font catalogs found.');
+    expect(output).toContain('fontist import macos --plist');
   });
 
   it('uninstall prints removal output and supports the remove alias', async () => {

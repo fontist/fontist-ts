@@ -42,7 +42,25 @@ interface CliFlags {
   location?: string;
   variableAxes?: string;
   preferVariable?: boolean;
+  preferFormat?: string;
+  transcodePath?: string;
+  keepOriginal?: boolean;
+  confirmLicense?: boolean;
   collectionIndex?: string;
+  limit?: string;
+  dryRun?: boolean;
+  name?: string;
+  mirror?: string[];
+  subdir?: string;
+  filePattern?: string;
+  namePrefix?: string;
+  schemaVersion?: string;
+  sourcePath?: string;
+  outputPath?: string;
+  fontName?: string;
+  importCache?: string;
+  plist?: string;
+  formulasDir?: string;
   interactive?: boolean;
   axes?: string;
   variable?: boolean;
@@ -76,6 +94,7 @@ function installSpecOptions(command: Command): Command {
     .option('-f, --force', 'Install even if already installed in system')
     .option('-F, --formula', 'Install whole formula instead of a font')
     .option('-a, --accept-all-licenses', 'Accept all license agreements')
+    .option('--confirm-license', 'Accept all license agreements')
     .option('-h, --hide-licenses', 'Hide license texts')
     .option('-p, --no-progress', 'Hide download progress')
     .option('-V, --version <version>', 'Specify particular version of a font')
@@ -87,6 +106,9 @@ function installSpecOptions(command: Command): Command {
     .option('--format <format>', 'Requested font format (ttf, otf, woff2, ...)')
     .option('--variable-axes <axes>', 'Comma-separated variable font axes (e.g. wght)')
     .option('--prefer-variable', 'Prefer variable fonts')
+    .option('--prefer-format <format>', 'Preferred format when multiple available')
+    .option('--transcode-path <dir>', 'Directory to save transcoded fonts')
+    .option('--keep-original', 'Keep original font after transcoding', true)
     .option('--collection-index <index>', 'Index of the face inside a collection (ttc/otc)');
 }
 
@@ -95,11 +117,20 @@ function formatSpecFrom(flags: CliFlags): FormatSpec | null {
     format: flags.format,
     variableAxes: parseVariableAxes(flags.variableAxes),
     preferVariable: flags.preferVariable ?? false,
+    preferFormat: flags.preferFormat ?? null,
+    transcodePath: flags.transcodePath ?? null,
+    keepOriginal: flags.keepOriginal ?? null,
     collectionIndex: flags.collectionIndex ? Number.parseInt(flags.collectionIndex, 10) : null,
   });
   return spec.hasConstraints() ? spec : null;
 }
 
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function parseSizeLimit(raw: string | undefined): number | null {
   if (!raw) return null;
@@ -157,7 +188,7 @@ installSpecOptions(program.command('install'))
         const result = await Font.installMany(fonts, ctx, {
           force: flags.force ?? false,
           formula: flags.formula ? fonts[0] : null,
-          confirmation: flags.acceptAllLicenses ? 'yes' : null,
+          confirmation: flags.acceptAllLicenses || flags.confirmLicense ? 'yes' : null,
           hideLicenses: flags.hideLicenses ?? false,
           noProgress: flags.noProgress ?? false,
           version: flags.version ?? null,
@@ -571,7 +602,7 @@ program
           const manifest = await Manifest.fromFile(file);
           if (action === 'install') {
             const response = await manifest.install(ctx, {
-              confirmation: flags.acceptAllLicenses ? 'yes' : null,
+              confirmation: flags.acceptAllLicenses || flags.confirmLicense ? 'yes' : null,
               hideLicenses: flags.hideLicenses ?? false,
               noProgress: flags.noProgress ?? false,
               location: locationOption(flags),
@@ -659,23 +690,263 @@ program
 
 program
     .command('index')
-    .description('Manage formula indexes')
-    .argument('<action>', 'rebuild | build')
+    .description('Manage system font index')
+    .argument('<action>', 'rebuild | path | list | clear | update')
+    .option('-v, --verbose', 'Show detailed progress and statistics')
+    .option('-o, --output <path>', 'Save index to specified path (for inspection)')
+    .option('--format <format>', 'Output format: yaml or json', 'yaml')
+    .option('--limit <n>', 'Limit number of fonts to display')
     .action(async (action: string, flags: CliFlags) => {
+      await withContext(flags, async (ctx) => {
+        try {
+          const { SystemIndex } = await import('../index/installed/collectionIndexes.js');
+          const { scanFontPaths } = await import('../system/pathScanning.js');
+          const { systemFontPaths } = await import('../system/systemFontsData.js');
+          const { defaultUserFontPath } = await import('../system/fontDirs.js');
+          const YAML = await import('yaml');
+          const index = new SystemIndex(ctx);
+          const indexFile = ctx.paths.systemIndexPath();
+
+          if (action === 'rebuild') {
+            const startTime = Date.now();
+            const dirs = [
+              ...(await systemFontPaths(ctx)),
+              defaultUserFontPath(ctx.platform, ctx.env),
+              ctx.paths.fontsPath(),
+            ];
+            const allFonts = await scanFontPaths(dirs);
+            const byDir = new Map<string, number>();
+            for (const fontPath of allFonts) {
+              const dir = path.dirname(fontPath);
+              byDir.set(dir, (byDir.get(dir) ?? 0) + 1);
+            }
+            ctx.ui.say('Rebuilding system font index from scratch...');
+            ctx.ui.say('-'.repeat(80));
+            ctx.ui.say(`Platform: ${ctx.platform}`);
+            ctx.ui.say('');
+            ctx.ui.say('Scanning directories:');
+            for (const dir of [...byDir.keys()].sort()) {
+              const count = byDir.get(dir)!;
+              const managed = dir.startsWith(ctx.paths.fontsPath()) ? ' (fontist managed)' : '';
+              ctx.ui.say(`  \u2713 ${dir} (${count} ${count === 1 ? 'font' : 'fonts'})${managed}`);
+            }
+            ctx.ui.say('');
+            ctx.ui.say(`Total font files found: ${allFonts.length}`);
+            ctx.ui.say('(Note: Font collections like .ttc files contain multiple fonts)');
+            ctx.ui.say('-'.repeat(80));
+            ctx.ui.say('');
+
+            const indexingStart = Date.now();
+            await index.rebuild({ forced: true });
+            const indexingTime = (Date.now() - indexingStart) / 1000;
+
+            if (flags.output) {
+              const content = await fsp.readFile(indexFile, 'utf8');
+              await fsp.mkdir(path.dirname(flags.output), { recursive: true });
+              await fsp.writeFile(flags.output, content);
+              ctx.ui.say(`Index saved to: ${flags.output}`);
+            }
+
+            const totalIndexed = (await index.entries()).length;
+            const collectionFonts = totalIndexed - allFonts.length;
+            ctx.ui.say('');
+            ctx.ui.say(`  Index file: ${indexFile}`);
+            ctx.ui.say('System font index rebuilt successfully');
+            ctx.ui.say(`  Font files processed: ${allFonts.length}`);
+            ctx.ui.say(`  Total fonts indexed:  ${totalIndexed}`);
+            if (collectionFonts > 0) {
+              ctx.ui.say(`  Fonts from collections: ${collectionFonts} (.ttc/.otc files)`);
+            }
+            ctx.ui.say('-'.repeat(80));
+            ctx.ui.say('Timing:');
+            ctx.ui.say(`  Directory scanning: ${((startTime === 0 ? 0 : (indexingStart - startTime) / 1000)).toFixed(2)}s`);
+            ctx.ui.say(`  Font indexing:       ${indexingTime.toFixed(2)}s`);
+            ctx.ui.say(`  Total time:          ${((Date.now() - startTime) / 1000).toFixed(2)}s`);
+            process.exitCode = STATUS_SUCCESS;
+          } else if (action === 'path') {
+            ctx.ui.say(indexFile);
+            process.exitCode = STATUS_SUCCESS;
+          } else if (action === 'list') {
+            const entries = await index.entries();
+            const fontsData = entries.map((fontEntry) => ({
+              path: fontEntry.path,
+              family_name: fontEntry.familyName,
+              full_name: fontEntry.fullName,
+              subfamily: fontEntry.subfamily,
+              preferred_family_name: fontEntry.preferredFamilyName,
+              preferred_subfamily_name: fontEntry.preferredSubfamilyName,
+            }));
+            const limited = flags.limit
+              ? fontsData.slice(0, Number.parseInt(flags.limit, 10))
+              : fontsData;
+            if (flags.format === 'json') {
+              ctx.ui.say(JSON.stringify(limited, null, 2));
+            } else if (flags.format === 'yaml') {
+              ctx.ui.say(YAML.stringify(limited, { lineWidth: 100 }));
+            } else {
+              ctx.ui.error(`Unknown format: ${flags.format}. Use 'yaml' or 'json'.`);
+              process.exitCode = STATUS_UNKNOWN_ERROR;
+              return;
+            }
+            process.exitCode = STATUS_SUCCESS;
+          } else if (action === 'clear') {
+            try {
+              await fsp.access(indexFile);
+              await fsp.rm(indexFile);
+              ctx.ui.say(`System font index cleared: ${indexFile}`);
+            } catch {
+              ctx.ui.say('System font index does not exist');
+            }
+            process.exitCode = STATUS_SUCCESS;
+          } else if (action === 'update') {
+            const startTime = Date.now();
+            if (!(await index.existsOnDisk())) {
+              ctx.ui.say('System font index does not exist');
+              ctx.ui.say("Run 'fontist index rebuild' to create it");
+              process.exitCode = STATUS_UNKNOWN_ERROR;
+              return;
+            }
+            ctx.ui.say('Updating system font index incrementally...');
+            ctx.ui.say('-'.repeat(80));
+            const before = (await index.entries()).length;
+            const changed = await index.indexChangedNow();
+            if (changed) {
+              await index.rebuild({ forced: true });
+              ctx.ui.say('System font index updated');
+            } else {
+              ctx.ui.say('No changes detected');
+            }
+            const after = (await index.entries()).length;
+            ctx.ui.say('-'.repeat(80));
+            ctx.ui.say('Fonts:');
+            ctx.ui.say(`  Before: ${before}`);
+            ctx.ui.say(`  After:  ${after}`);
+            ctx.ui.say(`  Total time:   ${((Date.now() - startTime) / 1000).toFixed(2)}s`);
+            process.exitCode = STATUS_SUCCESS;
+          } else {
+            ctx.ui.error(`Unknown index action: ${action} (use rebuild, path, list, clear, or update)`);
+            process.exitCode = STATUS_UNKNOWN_ERROR;
+          }
+        } catch (err) {
+          reportError(ctx, err as Error, flags);
+          process.exitCode = exitCodeFor(err as Error) ?? 1;
+        }
+      });
+    });
+program
+    .command('rebuild-index')
+    .description('Rebuild formula index (used by formulas maintainers)')
+    .action(async (flags: CliFlags) => {
       await withContext(flags, async (ctx) => {
         try {
           const repository = new FormulaRepository(ctx);
           const indexes = new FormulaIndexRegistry(ctx, repository);
-          if (action === 'rebuild') {
-            await indexes.rebuildAll();
-            ctx.ui.say('Formula indexes rebuilt.');
-          } else if (action === 'build') {
-            await indexes.rebuildAll();
-            ctx.ui.say('Formula indexes built.');
+          await indexes.rebuildAll();
+          ctx.ui.say('Formula index has been rebuilt.');
+          process.exitCode = STATUS_SUCCESS;
+        } catch (err) {
+          reportError(ctx, err as Error, flags);
+          process.exitCode = exitCodeFor(err as Error) ?? 1;
+        }
+      });
+    });
+
+program
+    .command('migrate-formulas')
+    .description('Migrate v4 formulas to v5 schema')
+    .option('--dry-run', 'Show what would be done without making changes')
+    .argument('<input>', 'Path to a formula file or directory of formulas')
+    .argument('[output]', 'Output path (default: migrate in place)')
+    .action(async (input: string, output: string | undefined, flags: CliFlags) => {
+      await withContext(flags, async (ctx) => {
+        try {
+          const { V4ToV5Migrator } = await import('../import/v4ToV5Migrator.js');
+          const migrator = new V4ToV5Migrator(input, output ?? null, {
+            verbose: flags.verbose,
+            dryRun: flags.dryRun,
+          });
+          const results = migrator.migrateAll();
+          if (results.failed > 0) {
+            ctx.ui.error(`Migration completed with ${results.failed} error(s)`);
+            process.exitCode = STATUS_UNKNOWN_ERROR;
           } else {
-            ctx.ui.error(`Unknown index action: ${action} (use rebuild or build)`);
-            process.exitCode = 1;
+            ctx.ui.say(
+              `Migrated ${results.migrated} formula(s), skipped ${results.skipped} already v5 formula(s)`,
+            );
+            process.exitCode = STATUS_SUCCESS;
           }
+        } catch (err) {
+          reportError(ctx, err as Error, flags);
+          process.exitCode = exitCodeFor(err as Error) ?? 1;
+        }
+      });
+    });
+
+program
+    .command('create-formula')
+    .description('Create a new formula with fonts from URL')
+    .option('--name <name>', 'Formula name, e.g. "Times New Roman"')
+    .option('--mirror <url>', 'Mirror URL (repeatable)', (value: string, previous: string[] | undefined) =>
+      [...(previous ?? []), value],
+    )
+    .option('--subdir <dir>', 'Subdirectory to take fonts from (fnmatch patterns allowed)')
+    .option('--file-pattern <pattern>', "File pattern, e.g. '*.otf'")
+    .option('--name-prefix <prefix>', "Prefix to add to all font family names, e.g. 'Wine '")
+    .option('--schema-version <version>', 'Formula schema version (default: 5)', '5')
+    .argument('<url>', 'Archive URL or local path')
+    .action(async (url: string, flags: CliFlags) => {
+      await withContext(flags, async (ctx) => {
+        try {
+          const { CreateFormula } = await import('../import/createFormula.js');
+          const formulaFile = await new CreateFormula(ctx, url, {
+            name: flags.name,
+            mirror: flags.mirror,
+            subdir: flags.subdir,
+            filePattern: flags.filePattern,
+            namePrefix: flags.namePrefix,
+            schemaVersion: Number.parseInt(flags.schemaVersion ?? '5', 10),
+          }).call();
+          ctx.ui.say(`${formulaFile} formula has been successfully created`);
+          process.exitCode = STATUS_SUCCESS;
+        } catch (err) {
+          reportError(ctx, err as Error, flags);
+          process.exitCode = exitCodeFor(err as Error) ?? 1;
+        }
+      });
+    });
+
+program
+    .command('macos-catalogs')
+    .description('List available macOS font catalogs')
+    .action(async (flags: CliFlags) => {
+      await withContext(flags, async (ctx) => {
+        try {
+          const { CatalogManager } = await import('../import/macos/catalog/catalogManager.js');
+          const catalogs = CatalogManager.availableCatalogs(
+            path.join(ctx.paths.versionsPath(), 'macos_catalogs'),
+          );
+
+          if (catalogs.length === 0) {
+            ctx.ui.error('No macOS font catalogs found.');
+            ctx.ui.say('Expected location: /System/Library/AssetsV2/');
+            ctx.ui.say('');
+            ctx.ui.say('You can specify a catalog manually with:');
+            ctx.ui.say('  fontist import macos --plist path/to/com_apple_MobileAsset_FontX.xml');
+            process.exitCode = STATUS_UNKNOWN_ERROR;
+            return;
+          }
+
+          ctx.ui.say('Available macOS Font Catalogs:');
+          for (const catalogPath of catalogs) {
+            const versionNum = CatalogManager.detectVersion(catalogPath);
+            const size = (await fsp.stat(catalogPath)).size;
+            ctx.ui.say(`  Font${versionNum}: ${catalogPath} (${formatBytes(size)})`);
+          }
+
+          ctx.ui.say('');
+          ctx.ui.say('To import a catalog:');
+          ctx.ui.say('  fontist import macos --plist <path>');
+          process.exitCode = STATUS_SUCCESS;
         } catch (err) {
           reportError(ctx, err as Error, flags);
           process.exitCode = exitCodeFor(err as Error) ?? 1;

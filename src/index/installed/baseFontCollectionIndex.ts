@@ -60,6 +60,31 @@ export abstract class BaseFontCollectionIndex {
     return this;
   }
 
+  /** Whether the index file exists on disk (Ruby index.file_exist?). */
+  async existsOnDisk(): Promise<boolean> {
+    try {
+      await fsp.access(this.indexPath());
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** All indexed font entries (Ruby index.fonts). */
+  async entries(): Promise<SystemIndexFont[]> {
+    const collection = await this.loadCollection();
+    await this.ensureFresh(collection);
+    return collection.allFonts();
+  }
+
+  /** Whether the index is stale relative to monitored directories and the
+   * current filesystem (Ruby index.changed?). */
+  async indexChangedNow(): Promise<boolean> {
+    const collection = await this.loadCollection();
+    const directories = await this.monitoredDirectories();
+    return collection.indexChanged(directories, () => this.fontPaths());
+  }
+
   async find(name: string, style: string | null = null): Promise<SystemIndexFont[] | null> {
     const collection = await this.loadCollection();
     await this.ensureFresh(collection);
