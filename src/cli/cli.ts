@@ -20,7 +20,7 @@ import { FormulasRepo } from '../repo/formulasRepo.js';
 import { PrivateRepos } from '../repo/privateRepos.js';
 import { updateFormulas } from '../repo/update.js';
 import { UI } from '../ui/ui.js';
-import { exitCodeFor, sizeLimitHint, STATUS_MISSING_FONT_ERROR } from './exitCodes.js';
+import { exitCodeFor, sizeLimitHint, STATUS_MISSING_FONT_ERROR, STATUS_SUCCESS, STATUS_UNKNOWN_ERROR } from './exitCodes.js';
 import * as fsp from 'node:fs/promises';
 
 async function fspReadJson(filePath: string): Promise<unknown> {
@@ -390,6 +390,175 @@ program
         }
       });
     });
+
+const importCmd = program
+  .command('import')
+  .description('Import fonts to create new formulas');
+
+function formatImportDuration(seconds: number): string {
+  if (seconds < 60) return `${(seconds / 1000).toFixed(2)}s`;
+  const minutes = Math.floor(seconds / 1000 / 60);
+  const remainingSeconds = ((seconds / 1000) % 60).toFixed(2);
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
+function reportImportResult(
+  ctx: FontistContext,
+  result: {
+    successful: number;
+    failed: number;
+    skipped: number;
+    overwritten: number;
+    duration: number;
+  },
+): void {
+  ctx.ui.say('Import completed');
+  ctx.ui.say(`  Successful: ${result.successful}`);
+  if (result.skipped > 0) ctx.ui.say(`  Skipped: ${result.skipped}`);
+  if (result.overwritten > 0) ctx.ui.say(`  Overwritten: ${result.overwritten}`);
+  if (result.failed > 0) ctx.ui.say(`  Failed: ${result.failed}`);
+  ctx.ui.say(`  Duration: ${formatImportDuration(result.duration)}`);
+}
+
+importCmd
+  .command('google')
+  .description('Import Google fonts')
+  .option('--source-path <path>', 'Path to checked-out google/fonts repository')
+  .option('--output-path <path>', 'Output path for generated formulas (default: ./Formulas/google)')
+  .option('--font-name <name>', 'Import specific font family by name', undefined)
+  .option('--font-family <name>', 'Alias of --font-name')
+  .option('-f, --force', 'Overwrite existing formulas')
+  .option('-v, --verbose', 'Enable verbose output')
+  .option('--import-cache <dir>', 'Directory for import cache')
+  .option('--schema-version <version>', 'Formula schema version (4 or 5)', '4')
+  .action(async (flags: CliFlags & {
+    sourcePath?: string;
+    outputPath?: string;
+    fontName?: string;
+    fontFamily?: string;
+    force?: boolean;
+    verbose?: boolean;
+    importCache?: string;
+    schemaVersion?: string;
+  }) => {
+    await withContext(flags, async (ctx) => {
+      try {
+        const { GoogleFontsImporter } = await import('../import/google/googleFontsImporter.js');
+        const importer = new GoogleFontsImporter(ctx, {
+          sourcePath: flags.sourcePath,
+          outputPath: flags.outputPath,
+          fontFamily: flags.fontName ?? flags.fontFamily,
+          force: flags.force,
+          verbose: flags.verbose,
+          importCache: flags.importCache,
+          schemaVersion: Number.parseInt(flags.schemaVersion ?? '4', 10),
+        });
+        const result = await importer.import();
+        if (!flags.verbose) reportImportResult(ctx, result);
+        process.exitCode = STATUS_SUCCESS;
+      } catch (err) {
+        ctx.ui.error(`Import error: ${err instanceof Error ? err.message : String(err)}`);
+        process.exitCode = STATUS_UNKNOWN_ERROR;
+      }
+    });
+  });
+
+importCmd
+  .command('macos')
+  .description('Import macOS supplementary fonts')
+  .option('--plist <path>', 'Path to macOS font catalog XML (e.g., com_apple_MobileAsset_Font8.xml)')
+  .option('--output-path <path>', 'Output directory for generated formulas (default: formulas/macos)')
+  .option('--formulas-dir <dir>', 'DEPRECATED: Use --output-path instead')
+  .option('--font-name <name>', 'Import specific font by name (optional)')
+  .option('-f, --force', 'Overwrite existing formulas')
+  .option('-v, --verbose', 'Enable verbose output')
+  .option('--import-cache <dir>', 'Directory for import cache')
+  .option('--schema-version <version>', 'Formula schema version (4 or 5)', '4')
+  .action(async (flags: CliFlags & {
+    plist?: string;
+    outputPath?: string;
+    formulasDir?: string;
+    fontName?: string;
+    force?: boolean;
+    verbose?: boolean;
+    importCache?: string;
+    schemaVersion?: string;
+  }) => {
+    await withContext(flags, async (ctx) => {
+      try {
+        const { MacosImporter } = await import('../import/macos/macosImporter.js');
+        const { CatalogManager } = await import('../import/macos/catalog/catalogManager.js');
+
+        let outputDir = flags.outputPath;
+        if (flags.formulasDir && !flags.outputPath) {
+          ctx.ui.error('DEPRECATED: --formulas-dir is deprecated, use --output-path instead');
+          outputDir = flags.formulasDir;
+        }
+
+        let plistPath = flags.plist ?? null;
+        if (!plistPath) {
+          const catalogs = CatalogManager.availableCatalogs(
+            path.join(ctx.paths.versionsPath(), 'macos_catalogs'),
+          );
+          if (catalogs.length === 0) {
+            throw new Error('No macOS font catalogs found. Please specify --plist path/to/catalog.xml');
+          }
+          plistPath = catalogs[catalogs.length - 1]!;
+        }
+
+        await new MacosImporter(ctx, plistPath, {
+          formulasDir: outputDir,
+          fontName: flags.fontName,
+          force: flags.force,
+          verbose: flags.verbose,
+          importCache: flags.importCache,
+          schemaVersion: Number.parseInt(flags.schemaVersion ?? '4', 10),
+        }).call();
+        process.exitCode = STATUS_SUCCESS;
+      } catch (err) {
+        ctx.ui.error(`Import error: ${err instanceof Error ? err.message : String(err)}`);
+        process.exitCode = STATUS_UNKNOWN_ERROR;
+      }
+    });
+  });
+
+importCmd
+  .command('sil')
+  .description('Import formulas from SIL International')
+  .option('--output-path <path>', 'Output directory for generated formulas')
+  .option('--font-name <name>', 'Import specific font by name (optional)')
+  .option('-f, --force', 'Overwrite existing formulas')
+  .option('-v, --verbose', 'Enable verbose output')
+  .option('--import-cache <dir>', 'Directory for import cache')
+  .option('--schema-version <version>', 'Formula schema version (4 or 5)', '4')
+  .action(async (flags: CliFlags & {
+    outputPath?: string;
+    fontName?: string;
+    force?: boolean;
+    verbose?: boolean;
+    importCache?: string;
+    schemaVersion?: string;
+  }) => {
+    await withContext(flags, async (ctx) => {
+      try {
+        const { SilImporter } = await import('../import/silImporter.js');
+        const importer = new SilImporter(ctx, {
+          outputPath: flags.outputPath,
+          fontName: flags.fontName,
+          force: flags.force,
+          verbose: flags.verbose,
+          importCache: flags.importCache,
+          schemaVersion: Number.parseInt(flags.schemaVersion ?? '4', 10),
+        });
+        const result = await importer.call();
+        if (!flags.verbose) reportImportResult(ctx, result);
+        process.exitCode = STATUS_SUCCESS;
+      } catch (err) {
+        ctx.ui.error(`Import error: ${err instanceof Error ? err.message : String(err)}`);
+        process.exitCode = STATUS_UNKNOWN_ERROR;
+      }
+    });
+  });
 
 program
     .command('manifest')

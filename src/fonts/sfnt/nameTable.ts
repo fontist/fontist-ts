@@ -1,10 +1,15 @@
 /** name-table record identifiers Fontist relies on. */
 export const NAME_ID = {
+  COPYRIGHT: 0,
   FAMILY: 1,
   SUBFAMILY: 2,
   FULL_NAME: 4,
   VERSION: 5,
   POSTSCRIPT_NAME: 6,
+  DESCRIPTION: 10,
+  VENDOR_URL: 11,
+  LICENSE_DESCRIPTION: 13,
+  LICENSE_URL: 14,
   PREFERRED_FAMILY: 16,
   PREFERRED_SUBFAMILY: 17,
 } as const;

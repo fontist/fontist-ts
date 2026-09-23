@@ -21,6 +21,12 @@ export class SfntFont {
     this.view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   }
 
+  /** The SFNT version tag: `\x00\x01\x00\x00`/`true` for TrueType, `OTTO` for CFF. */
+  sfntVersionTag(): string {
+    if (this.data.length < 4) return '';
+    return String.fromCharCode(this.data[0]!, this.data[1]!, this.data[2]!, this.data[3]!);
+  }
+
   private tableEntries(): Map<string, { offset: number; length: number }> {
     if (this.tableCache) return this.tableCache;
     const tables = new Map<string, { offset: number; length: number }>();
@@ -91,6 +97,22 @@ export class SfntFont {
 
   version(): string | null {
     return this.name(NAME_ID.VERSION);
+  }
+
+  copyright(): string | null {
+    return this.name(NAME_ID.COPYRIGHT);
+  }
+
+  vendorUrl(): string | null {
+    return this.name(NAME_ID.VENDOR_URL);
+  }
+
+  licenseDescription(): string | null {
+    return this.name(NAME_ID.LICENSE_DESCRIPTION);
+  }
+
+  licenseUrl(): string | null {
+    return this.name(NAME_ID.LICENSE_URL);
   }
 
   /** An SFNT font is variable when it carries an fvar table. */

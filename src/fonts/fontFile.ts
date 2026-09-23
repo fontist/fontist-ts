@@ -5,11 +5,13 @@ import type { UI } from '../ui/ui.js';
 import { detectFormat, type FontBinaryFormat } from './sfnt/magic.js';
 import { SfntCollection } from './sfnt/collection.js';
 import { SfntFont } from './sfnt/sfntFont.js';
+import { DfontCollection } from './sfnt/dfont.js';
 import { loadWoff1 } from './woff/woff1.js';
 import { loadWoff2 } from './woff/woff2.js';
 
 export interface FontFileInfo {
   format: FontBinaryFormat;
+  sfntVersionTag: string;
   familyName: string | null;
   subfamilyName: string | null;
   fullName: string | null;
@@ -17,6 +19,10 @@ export interface FontFileInfo {
   preferredFamilyName: string | null;
   preferredSubfamilyName: string | null;
   version: string | null;
+  copyright: string | null;
+  vendorUrl: string | null;
+  licenseDescription: string | null;
+  licenseUrl: string | null;
   isVariable: boolean;
   variableAxes: string[];
   collectionIndex: number | null;
@@ -24,7 +30,7 @@ export interface FontFileInfo {
 
 /** Facade over the font parsers: loads a font file (or one face of a
  * collection) and exposes the metadata Fontist needs. WOFF/WOFF2 are
- * decoded for indexing; collections read one face at a time. */
+ * decoded for indexing; collections (TTC/OTC/dfont) read one face at a time. */
 export class FontFile {
   private constructor(private readonly info: FontFileInfo) {}
 
@@ -57,10 +63,12 @@ export class FontFile {
       );
     }
 
-    if (detected === 'ttc' || detected === 'otc') {
-      const collection = new SfntCollection(bytes);
+    if (detected === 'ttc' || detected === 'otc' || detected === 'dfont') {
       const index = options.collectionIndex ?? 0;
-      const face = collection.face(index);
+      const face =
+        detected === 'dfont'
+          ? new DfontCollection(bytes).face(index)
+          : new SfntCollection(bytes).face(index);
       return new FontFile(buildInfo(detected, face, index));
     }
 
@@ -71,6 +79,9 @@ export class FontFile {
 
   get format(): FontBinaryFormat {
     return this.info.format;
+  }
+  get sfntVersionTag(): string {
+    return this.info.sfntVersionTag;
   }
   get familyName(): string | null {
     return this.info.familyName;
@@ -92,6 +103,18 @@ export class FontFile {
   }
   get version(): string | null {
     return this.info.version;
+  }
+  get copyright(): string | null {
+    return this.info.copyright;
+  }
+  get vendorUrl(): string | null {
+    return this.info.vendorUrl;
+  }
+  get licenseDescription(): string | null {
+    return this.info.licenseDescription;
+  }
+  get licenseUrl(): string | null {
+    return this.info.licenseUrl;
   }
   get isVariable(): boolean {
     return this.info.isVariable;
@@ -116,6 +139,7 @@ function buildInfo(
   font.validate();
   return {
     format,
+    sfntVersionTag: font.sfntVersionTag(),
     familyName: font.familyName(),
     subfamilyName: font.subfamilyName(),
     fullName: font.fullName(),
@@ -123,6 +147,10 @@ function buildInfo(
     preferredFamilyName: font.preferredFamilyName(),
     preferredSubfamilyName: font.preferredSubfamilyName(),
     version: font.version(),
+    copyright: font.copyright(),
+    vendorUrl: font.vendorUrl(),
+    licenseDescription: font.licenseDescription(),
+    licenseUrl: font.licenseUrl(),
     isVariable: font.isVariable(),
     variableAxes: font.variableAxes().map((axis) => axis.tag),
     collectionIndex,

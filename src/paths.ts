@@ -30,6 +30,12 @@ export class FontistPaths {
     return path.join(this.root, 'downloads');
   }
 
+  /** Import cache (Ruby Fontist.import_cache_path): FONTIST_IMPORT_CACHE or
+   * `<fontist home>/import_cache`. */
+  importCachePath(env: NodeJS.ProcessEnv = process.env): string {
+    return env.FONTIST_IMPORT_CACHE || path.join(this.root, 'import_cache');
+  }
+
   versionsPath(): string {
     return path.join(this.root, 'versions', FORMULAS_VERSION);
   }

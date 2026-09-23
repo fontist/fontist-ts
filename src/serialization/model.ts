@@ -1,6 +1,6 @@
 import * as yaml from 'yaml';
 
-export type ScalarType = 'string' | 'integer' | 'boolean' | 'float';
+export type ScalarType = 'string' | 'integer' | 'boolean' | 'float' | 'hash';
 
 export interface AttributeOptions {
   /** The attribute holds a collection (rendered as YAML sequence). */
@@ -14,6 +14,7 @@ export interface AttributeOptions {
   /** Conditional omission hook, evaluated against the instance. */
   omitWhen?: (instance: object) => boolean;
 }
+
 
 export interface AttributeDef {
   name: string;
@@ -41,7 +42,7 @@ export interface MappingDef {
   polymorphicRegistry?: MappingOptions['polymorphicRegistry'];
 }
 
-const SCALARS: readonly ScalarType[] = ['string', 'integer', 'boolean', 'float'];
+const SCALARS: readonly ScalarType[] = ['string', 'integer', 'boolean', 'float', 'hash'];
 
 function snakeCase(name: string): string {
   return name.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);

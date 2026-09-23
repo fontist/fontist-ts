@@ -1,6 +1,7 @@
 import { promises as fsp } from 'node:fs';
+import { looksLikeDfont } from './dfont.js';
 
-export type FontBinaryFormat = 'ttf' | 'otf' | 'ttc' | 'otc' | 'woff' | 'woff2';
+export type FontBinaryFormat = 'ttf' | 'otf' | 'ttc' | 'otc' | 'woff' | 'woff2' | 'dfont';
 
 /** Sniffs the font binary format from magic bytes, independent of the extension. */
 export function detectFormat(bytes: Uint8Array): FontBinaryFormat | null {
@@ -21,7 +22,7 @@ export function detectFormat(bytes: Uint8Array): FontBinaryFormat | null {
     case 'wOF2':
       return 'woff2';
     default:
-      return null;
+      return looksLikeDfont(bytes) ? 'dfont' : null;
   }
 }
 
