@@ -4,6 +4,7 @@ import type { FontistContext } from '../context.js';
 import { FormulaNotFoundError } from '../errors/errors.js';
 import { mapWithConcurrency } from '../util/concurrency.js';
 import { Formula, keyFromPath, titleize } from './formula.js';
+import type { FontModel, FontStyle } from './models.js';
 
 const FORMULA_PARSE_CONCURRENCY = 8;
 
@@ -90,6 +91,22 @@ export class FormulaRepository {
     const byKey = await this.findByKey(keyOrName);
     if (byKey) return byKey;
     return this.findByKey(nameToKey(keyOrName));
+  }
+
+  /** Ruby `Formula.find_fonts`: the matching FontModels across the index. */
+  async findFonts(fontName: string): Promise<FontModel[]> {
+    const { FormulaIndexRegistry } = await import('../index/formula/formulaFontIndex.js');
+    const formulas = await new FormulaIndexRegistry(this.ctx, this).fontIndex().loadFormulas(fontName);
+    return formulas.flatMap((formula) => formula.fontsByName(fontName));
+  }
+
+  /** Ruby `Formula.find_styles`: styles of the named font and style type. */
+  async findStyles(fontName: string, styleName: string): Promise<FontStyle[]> {
+    const { equalsIgnoreCase } = await import('../util/compare.js');
+    const fonts = await this.findFonts(fontName);
+    return fonts.flatMap((font) =>
+      font.styles.filter((style) => equalsIgnoreCase(style.type, styleName)),
+    );
   }
 
   /** Ruby `Formula.find_by_font_file`: the formula whose style declares the

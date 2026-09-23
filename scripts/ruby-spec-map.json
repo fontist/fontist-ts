@@ -88,7 +88,7 @@
     "fontist/font_finder_spec.rb": {
       "status": "partial",
       "ts": "spec/mirror/font_finder_spec.ts",
-      "note": "finder over formulas"
+      "note": "FontFinder capability search (axes/variable/category/format) + find_fonts/find_styles"
     },
     "fontist/font_license_confirmation_spec.rb": {
       "status": "mirrored",

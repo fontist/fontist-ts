@@ -20,6 +20,7 @@ export {
 } from './formula/formatMatcher.js';
 export { FormulaPicker, FORMULA_SIZE_LIMIT_MB } from './formula/formulaPicker.js';
 export { FormulaSuggestion } from './formula/formulaSuggestion.js';
+export { FontFinder, FontMatch, detectCategoryFromName } from './formula/fontFinder.js';
 export { StyleVersion } from './formula/styleVersion.js';
 export {
   Extract,
