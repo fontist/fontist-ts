@@ -286,29 +286,29 @@
       "note": "platform override resolution"
     },
     "fontist/import_source_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_source_spec.ts",
+      "note": "import source models: abstract methods, differentiation keys, outdated/equality semantics"
     },
     "fontist/google_import_source_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_source_spec.ts",
+      "note": "import source models: abstract methods, differentiation keys, outdated/equality semantics"
     },
     "fontist/macos_import_source_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_source_spec.ts",
+      "note": "import source models: abstract methods, differentiation keys, outdated/equality semantics"
     },
     "fontist/sil_import_source_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_source_spec.ts",
+      "note": "import source models: abstract methods, differentiation keys, outdated/equality semantics"
     },
     "fontist/windows_import_source_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_source_spec.ts",
+      "note": "import source models: abstract methods, differentiation keys, outdated/equality semantics"
     },
     "fontist/macos_framework_metadata_spec.rb": {
       "status": "partial",
@@ -316,19 +316,19 @@
       "note": "framework version mapping"
     },
     "fontist/windows_fod_metadata_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "FOD metadata parsing (payload pipeline not ported)"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_windows_spec.ts",
+      "note": "WindowsFodMetadata lookups and WindowsImport FOD formula generation"
     },
     "fontist/macos_ondemand_fonts_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "macOS on-demand catalog flow not ported"
+      "status": "partial",
+      "ts": "spec/formulaModels.spec.ts",
+      "note": "apple_cdn platform gating is formula/installer behavior; catalog import tooling now mirrored"
     },
     "fontist/windows_ondemand_fonts_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "Windows FOD payload flow not ported"
+      "status": "partial",
+      "ts": "spec/formulaModels.spec.ts",
+      "note": "windows_fod platform gating is formula/installer behavior; FOD generation now mirrored"
     },
     "fontist/resource_collection_spec.rb": {
       "status": "not-ported",
@@ -336,129 +336,129 @@
       "note": "Ruby resource-collection helper not used by TS port"
     },
     "fontist/macos/catalog/asset_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "MobileAsset catalog discovery not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_macos_catalog_spec.ts",
+      "note": "macOS catalog: Asset/FontInfo, BaseParser, Font7/Font8 filters, CatalogManager discovery/download, framework metadata"
     },
     "fontist/macos/catalog/base_parser_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "MobileAsset catalog discovery not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_macos_catalog_spec.ts",
+      "note": "macOS catalog: Asset/FontInfo, BaseParser, Font7/Font8 filters, CatalogManager discovery/download, framework metadata"
     },
     "fontist/macos/catalog/catalog_manager_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "MobileAsset catalog discovery not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_macos_catalog_spec.ts",
+      "note": "macOS catalog: Asset/FontInfo, BaseParser, Font7/Font8 filters, CatalogManager discovery/download, framework metadata"
     },
     "fontist/macos/catalog/font7_parser_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "MobileAsset catalog discovery not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_macos_catalog_spec.ts",
+      "note": "macOS catalog: Asset/FontInfo, BaseParser, Font7/Font8 filters, CatalogManager discovery/download, framework metadata"
     },
     "fontist/macos/catalog/font8_parser_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "MobileAsset catalog discovery not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_macos_catalog_spec.ts",
+      "note": "macOS catalog: Asset/FontInfo, BaseParser, Font7/Font8 filters, CatalogManager discovery/download, framework metadata"
     },
     "fontist/import/create_formula_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_create_formula_spec.ts",
+      "note": "formula generation from archives: fonts/collections, license capture, file patterns, v5 format+axes, keep-existing/override; msi/7z/exe/pkg network archives exercise the same recursive pipeline"
     },
     "fontist/import/font_metadata_extractor_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_font_metadata_spec.ts",
+      "note": "FontMetadata model (de)serialization and FontMetadataExtractor over ttf/otf/ttc, version cleaning, error cases"
     },
     "fontist/import/google/api_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_google_data_sources_spec.ts",
+      "note": "Google API data sources (ttf/vf/woff2): url building, parsing, caching, failures; Api facade queries"
     },
     "fontist/import/google/data_sources/base_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_google_data_sources_spec.ts",
+      "note": "Google API data sources (ttf/vf/woff2): url building, parsing, caching, failures; Api facade queries"
     },
     "fontist/import/google/data_sources/github_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_google_font_database_spec.ts",
+      "note": "FontDatabase merge, v4/v5 gating, formula generation via builders, saveFormulas, GitHub data source"
     },
     "fontist/import/google/data_sources/ttf_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_google_data_sources_spec.ts",
+      "note": "Google API data sources (ttf/vf/woff2): url building, parsing, caching, failures; Api facade queries"
     },
     "fontist/import/google/data_sources/vf_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_google_data_sources_spec.ts",
+      "note": "Google API data sources (ttf/vf/woff2): url building, parsing, caching, failures; Api facade queries"
     },
     "fontist/import/google/data_sources/woff2_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_google_data_sources_spec.ts",
+      "note": "Google API data sources (ttf/vf/woff2): url building, parsing, caching, failures; Api facade queries"
     },
     "fontist/import/google/font_database_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_google_font_database_spec.ts",
+      "note": "FontDatabase merge, v4/v5 gating, formula generation via builders, saveFormulas, GitHub data source"
     },
     "fontist/import/google/metadata_adapter_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_google_metadata_adapter_spec.ts",
+      "note": "METADATA.pb textproto → Metadata: fields, fonts, subsets, axes, source, registry overrides, languages"
     },
     "fontist/import/google/models/axis_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_google_models_spec.ts",
+      "note": "Google models: Axis classification/ranges, FontFamily files/axes queries, FontVariant formats"
     },
     "fontist/import/google/models/font_family_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_google_models_spec.ts",
+      "note": "Google models: Axis classification/ranges, FontFamily files/axes queries, FontVariant formats"
     },
     "fontist/import/google/models/font_variant_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_google_models_spec.ts",
+      "note": "Google models: Axis classification/ranges, FontFamily files/axes queries, FontVariant formats"
     },
     "fontist/import/macos_dfont_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_font_file_spec.ts",
+      "note": "ImportFontFile to_style/to_collection_style, name_prefix, fallbacks; FontDetector dfont/other handling"
     },
     "fontist/import/macos_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_macos_catalog_spec.ts",
+      "note": "macOS catalog: Asset/FontInfo, BaseParser, Font7/Font8 filters, CatalogManager discovery/download, framework metadata"
     },
     "fontist/import/models/font_metadata_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_font_metadata_spec.ts",
+      "note": "FontMetadata model (de)serialization and FontMetadataExtractor over ttf/otf/ttc, version cleaning, error cases"
     },
     "fontist/import/otf/font_file_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_font_file_spec.ts",
+      "note": "ImportFontFile to_style/to_collection_style, name_prefix, fallbacks; FontDetector dfont/other handling"
     },
     "fontist/import/sil_importer_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_sil_spec.ts",
+      "note": "SilImporter: page scrape selectors, index-page filter, name filter, version extraction, import source, keep-existing"
     },
     "fontist/import/v4_to_v5_migrator_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_v4_to_v5_migrator_spec.ts",
+      "note": "v4→v5 migration: schema_version, format detection, variable axes, summaries, dry run, output mapping"
     },
     "fontist/import/windows_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "formula import tooling not ported"
+      "status": "mirrored",
+      "ts": "spec/mirror/import_windows_spec.ts",
+      "note": "WindowsFodMetadata lookups and WindowsImport FOD formula generation"
     },
     "fontist/indexes/directory_change_spec.rb": {
       "status": "mirrored",

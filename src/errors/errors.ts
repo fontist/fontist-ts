@@ -85,8 +85,15 @@ export class PlatformMismatchError extends FontError {
 }
 
 export class FontNotFoundError extends FontistError {
-  constructor(public readonly parsingErrors: string[]) {
-    super(`Fonts could not be parsed:\n${parsingErrors.join('\n')}`);
+  constructor(
+    message: string,
+    public readonly parsingErrors: string[] = [],
+  ) {
+    super(message);
+  }
+
+  hasParsingErrors(): boolean {
+    return this.parsingErrors.length > 0;
   }
 }
 

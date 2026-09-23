@@ -1,4 +1,12 @@
+import {
+  macosFrameworkCompatibleWith,
+  macosFrameworkDescription,
+  macosFrameworkMaxVersion,
+  macosFrameworkMinVersion,
+  macosFrameworkParserClass,
+} from '../import/macos/frameworkMetadata.js';
 import { type ModelDefinition, SerializableModel } from '../serialization/model.js';
+
 
 export class ImportSource extends SerializableModel {
   declare type: string | null;
@@ -12,13 +20,14 @@ export class ImportSource extends SerializableModel {
     return this.type;
   }
 
-  /** Whether re-importing now would produce a different formula. */
-  isOutdated(_other: ImportSource): boolean {
-    return false;
+  /** Unique key differentiating this source from others (Ruby: abstract). */
+  differentiationKey(): string | null {
+    throw new Error(`${this.constructor.name} must implement #differentiation_key`);
   }
 
-  differentiationKey(): string | null {
-    return null;
+  /** Whether re-importing now would produce a different formula (Ruby: abstract). */
+  isOutdated(_other: ImportSource): boolean {
+    throw new Error(`${this.constructor.name} must implement #outdated?`);
   }
 }
 
@@ -37,21 +46,46 @@ export class MacosImportSource extends ImportSource {
     d.mapping('assetId');
   }
 
-  override isOutdated(other: ImportSource): boolean {
-    if (!(other instanceof MacosImportSource)) return true;
-    const otherVersion = other.frameworkVersion ?? 0;
-    const version = this.frameworkVersion ?? 0;
-    if (otherVersion !== version) return otherVersion > version;
-    return (other.postedDate ?? '') > (this.postedDate ?? '');
-  }
-
   override differentiationKey(): string | null {
-    return this.assetId;
+    return this.assetId?.toLowerCase() ?? null;
   }
 
-  compatibleWithMacos(macosVersion: number): boolean {
-    const version = this.frameworkVersion ?? 0;
-    return version === 0 || macosVersion >= version;
+  override isOutdated(other: ImportSource): boolean {
+    if (!(other instanceof MacosImportSource)) return false;
+    if (!this.postedDate || !other.postedDate) return false;
+    try {
+      return Date.parse(this.postedDate) < Date.parse(other.postedDate);
+    } catch {
+      return false;
+    }
+  }
+
+  override equals(other: ImportSource): boolean {
+    if (!(other instanceof MacosImportSource)) return false;
+    return (
+      this.frameworkVersion === other.frameworkVersion &&
+      (this.assetId?.toLowerCase() ?? null) === (other.assetId?.toLowerCase() ?? null)
+    );
+  }
+
+  minMacosVersion(): string | null {
+    return macosFrameworkMinVersion(this.frameworkVersion);
+  }
+
+  maxMacosVersion(): string | null {
+    return macosFrameworkMaxVersion(this.frameworkVersion);
+  }
+
+  compatibleWithMacos(macosVersion: string): boolean {
+    return macosFrameworkCompatibleWith(this.frameworkVersion, macosVersion);
+  }
+
+  parserClassName(): string | null {
+    return macosFrameworkParserClass(this.frameworkVersion);
+  }
+
+  frameworkDescription(): string | null {
+    return macosFrameworkDescription(this.frameworkVersion);
   }
 }
 
@@ -73,13 +107,19 @@ export class GoogleImportSource extends ImportSource {
     d.mapping('familyId');
   }
 
-  override isOutdated(other: ImportSource): boolean {
-    if (!(other instanceof GoogleImportSource)) return true;
-    return (other.commitId ?? '') !== (this.commitId ?? '');
+  /** Google Fonts is a live service; formulas always use simple filenames. */
+  override differentiationKey(): string | null {
+    return null;
   }
 
-  override differentiationKey(): string | null {
-    return this.familyId;
+  override isOutdated(other: ImportSource): boolean {
+    if (!(other instanceof GoogleImportSource)) return false;
+    if (!this.commitId || !other.commitId) return false;
+    return this.commitId !== other.commitId;
+  }
+
+  override equals(other: ImportSource): boolean {
+    return other instanceof GoogleImportSource && this.commitId === other.commitId;
   }
 }
 
@@ -95,9 +135,18 @@ export class SilImportSource extends ImportSource {
     d.mapping('releaseDate');
   }
 
+  override differentiationKey(): string | null {
+    return this.version;
+  }
+
   override isOutdated(other: ImportSource): boolean {
-    if (!(other instanceof SilImportSource)) return true;
-    return (other.version ?? '') !== (this.version ?? '');
+    if (!(other instanceof SilImportSource)) return false;
+    if (!this.version || !other.version) return false;
+    return this.version < other.version;
+  }
+
+  override equals(other: ImportSource): boolean {
+    return other instanceof SilImportSource && this.version === other.version;
   }
 }
 
@@ -115,6 +164,17 @@ export class WindowsImportSource extends ImportSource {
 
   override differentiationKey(): string | null {
     return this.capabilityName;
+  }
+
+  /** FOD capabilities are either present or not — never outdated. */
+  override isOutdated(_other: ImportSource): boolean {
+    return false;
+  }
+
+  override equals(other: ImportSource): boolean {
+    return (
+      other instanceof WindowsImportSource && this.capabilityName === other.capabilityName
+    );
   }
 }
 

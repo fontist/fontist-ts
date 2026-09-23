@@ -63,6 +63,66 @@ export { encodeWoff1, loadWoff1, type WoffTable } from './fonts/woff/woff1.js';
 export { decodeWoff2, encodeWoff2, loadWoff2 } from './fonts/woff/woff2.js';
 
 export {
+  CreateFormula,
+  type CreateFormulaOptions,
+} from './import/createFormula.js';
+export {
+  FormulaBuilder,
+  ManualFormulaBuilder,
+  normalizeFilename,
+  nameToFilename,
+} from './import/formulaBuilder.js';
+export { RecursiveExtraction, SUPPORTED_FONT_EXTENSIONS } from './import/recursiveExtraction.js';
+export { FontMetadataExtractor, extractFontMetadata } from './import/fontMetadataExtractor.js';
+export { FontMetadata } from './import/models/fontMetadata.js';
+export { ImportFontFile } from './import/otf/fontFile.js';
+export { FontDetector } from './import/files/fontDetector.js';
+export { CollectionFile } from './import/files/collectionFile.js';
+export { FontParsingErrorCollector } from './import/fontParsingErrorCollector.js';
+export { TextHelper } from './import/helpers/textHelper.js';
+export { V4ToV5Migrator, type MigrateAllSummary } from './import/v4ToV5Migrator.js';
+export { SilImporter, extractVersionFromUrl, type SilImportResults } from './import/silImporter.js';
+export { GoogleApi } from './import/google/api.js';
+export {
+  FontDatabase,
+  TtfDataSource,
+  VfDataSource,
+  Woff2DataSource,
+  GithubDataSource,
+} from './import/google/fontDatabase.js';
+export {
+  GoogleFontsImporter,
+  type GoogleFontsImportOptions,
+  type GoogleFontsImportResults,
+} from './import/google/googleFontsImporter.js';
+export {
+  Axis,
+  FontFamily,
+  FontVariant,
+  Metadata,
+  ValidationError as MetadataValidationError,
+} from './import/google/models/models.js';
+export {
+  CatalogManager,
+  Font3CatalogParser,
+  Font4CatalogParser,
+  Font5CatalogParser,
+  Font6CatalogParser,
+  Font7CatalogParser,
+  Font8CatalogParser,
+} from './import/macos/catalog/catalogManager.js';
+export { CatalogAsset, CatalogFontInfo } from './import/macos/catalog/asset.js';
+export { MacosImporter, type MacosImportOptions } from './import/macos/macosImporter.js';
+export {
+  MACOS_FRAMEWORK_METADATA,
+  macosFrameworkCompatibleWith,
+  macosFrameworkForMacos,
+  macosFrameworkMetadata,
+} from './import/macos/frameworkMetadata.js';
+export { WindowsFodMetadata } from './import/windows/windowsFodMetadata.js';
+export { WindowsImport } from './import/windows/windowsImport.js';
+
+export {
   createInstallLocation,
   BaseLocation,
   FontistLocation,

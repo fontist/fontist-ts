@@ -13,13 +13,15 @@ interface CacheIndex {
  * (URLs map to relative stored paths, keeping the directory relocatable). */
 export class DownloadCache {
   private readonly ctx: FontistContext;
+  private readonly directoryOverride: string | null;
 
-  constructor(ctx: FontistContext) {
+  constructor(ctx: FontistContext, directoryOverride: string | null = null) {
     this.ctx = ctx;
+    this.directoryOverride = directoryOverride;
   }
 
   directory(): string {
-    return this.ctx.paths.downloadsPath();
+    return this.directoryOverride ?? this.ctx.paths.downloadsPath();
   }
 
   mapPath(): string {

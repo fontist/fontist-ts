@@ -70,6 +70,10 @@ interface FaceNames {
   version?: string;
   preferredFamily?: string;
   preferredSubfamily?: string;
+  copyright?: string;
+  vendorUrl?: string;
+  licenseDescription?: string;
+  licenseUrl?: string;
 }
 
 function utf16be(value: string): Buffer {
@@ -82,11 +86,17 @@ function utf16be(value: string): Buffer {
 
 function buildNameTable(names: FaceNames): Buffer {
   const entries: { nameId: number; data: Buffer }[] = [];
+  if (names.copyright) entries.push({ nameId: 0, data: utf16be(names.copyright) });
   if (names.family) entries.push({ nameId: 1, data: utf16be(names.family) });
   if (names.subfamily) entries.push({ nameId: 2, data: utf16be(names.subfamily) });
   if (names.fullName) entries.push({ nameId: 4, data: utf16be(names.fullName) });
   if (names.version) entries.push({ nameId: 5, data: utf16be(names.version) });
   if (names.postScript) entries.push({ nameId: 6, data: utf16be(names.postScript) });
+  if (names.vendorUrl) entries.push({ nameId: 11, data: utf16be(names.vendorUrl) });
+  if (names.licenseDescription) {
+    entries.push({ nameId: 13, data: utf16be(names.licenseDescription) });
+  }
+  if (names.licenseUrl) entries.push({ nameId: 14, data: utf16be(names.licenseUrl) });
   if (names.preferredFamily) entries.push({ nameId: 16, data: utf16be(names.preferredFamily) });
   if (names.preferredSubfamily) {
     entries.push({ nameId: 17, data: utf16be(names.preferredSubfamily) });
@@ -263,4 +273,54 @@ export function fontFileFor(names: FaceNames): { name: string; data: Buffer } {
     name: `${names.fullName ?? names.family ?? 'Font'}.ttf`,
     data: makeTtf(names),
   };
+}
+
+/** Builds a Mac resource-fork (.dfont) container holding the given faces
+ * as `sfnt` resources. */
+export function makeDfont(faces: FaceNames[]): Buffer {
+  const sfnts = faces.map((names) => makeTtf(names));
+  const dataParts: Buffer[] = [];
+  const refOffsets: number[] = [];
+  let cursor = 0;
+  for (const sfnt of sfnts) {
+    const record = Buffer.alloc(4 + sfnt.length);
+    record.writeUInt32BE(sfnt.length, 0);
+    sfnt.copy(record, 4);
+    refOffsets.push(cursor);
+    dataParts.push(record);
+    cursor += record.length;
+  }
+  const dataSection = Buffer.concat(dataParts);
+
+  const refList = Buffer.alloc(sfnts.length * 12);
+  sfnts.forEach((_, i) => {
+    refList.writeUInt16BE(128 + i, i * 12); // resource id
+    refList.writeUInt16BE(0xffff, i * 12 + 2); // no name
+    refList.writeUInt32BE(refOffsets[i]!, i * 12 + 4);
+    refList.writeUInt8(0, i * 12 + 8); // attrs
+  });
+
+  const typeListSize = 2 + 8 + refList.length;
+  const typeList = Buffer.alloc(typeListSize);
+  typeList.writeUInt16BE(0, 0); // one type (count - 1)
+  typeList.write('sfnt', 2, 'ascii');
+  typeList.writeUInt16BE(sfnts.length - 1, 6);
+  typeList.writeUInt16BE(10, 8); // ref list offset from type list start
+  refList.copy(typeList, 10);
+
+  // Map: 16-byte header copy, 12 reserved bytes, then type/name list offsets
+  // at map-relative 24/26.
+  const mapBody = Buffer.alloc(12);
+  mapBody.writeUInt16BE(28, 8); // type list offset from map start
+  mapBody.writeUInt16BE(0, 10); // name list offset
+  const map = Buffer.concat([Buffer.alloc(16), mapBody, typeList]);
+
+  const header = Buffer.alloc(16);
+  header.writeUInt32BE(256, 0); // data offset
+  header.writeUInt32BE(256 + dataSection.length, 4); // map offset
+  header.writeUInt32BE(dataSection.length, 8);
+  header.writeUInt32BE(map.length, 12);
+
+  const padding = Buffer.alloc(256 - 16);
+  return Buffer.concat([header, padding, dataSection, map]);
 }
