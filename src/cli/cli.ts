@@ -21,6 +21,11 @@ import { PrivateRepos } from '../repo/privateRepos.js';
 import { updateFormulas } from '../repo/update.js';
 import { UI } from '../ui/ui.js';
 import { exitCodeFor, sizeLimitHint, STATUS_MISSING_FONT_ERROR } from './exitCodes.js';
+import * as fsp from 'node:fs/promises';
+
+async function fspReadJson(filePath: string): Promise<unknown> {
+  return JSON.parse(await fsp.readFile(filePath, 'utf8'));
+}
 
 interface CliFlags {
   verbose?: boolean;
@@ -35,7 +40,6 @@ interface CliFlags {
   sizeLimit?: string;
   updateFontconfig?: boolean;
   location?: string;
-  format?: string;
   variableAxes?: string;
   preferVariable?: boolean;
   collectionIndex?: string;
@@ -44,6 +48,10 @@ interface CliFlags {
   variable?: boolean;
   category?: string;
   json?: boolean;
+  format?: string;
+  output?: string;
+  parallel?: boolean;
+  rebuild?: boolean;
 }
 
 
@@ -310,6 +318,75 @@ program
                 `${data.category ? ` {${data.category}}` : ''}`,
             );
           }
+        }
+      });
+    });
+
+program
+    .command('validate')
+    .description('Font validation utilities')
+    .option('--format <format>', 'Output format: text, yaml, or json')
+    .option('--output <file>', 'Save report to specified file')
+    .option('--parallel', 'Use parallel processing')
+    .option('--rebuild', 'Rebuild cache even if it exists and is not stale')
+    .option('--verbose', 'Show detailed progress')
+    .argument('<action>', 'report | cache')
+    .action(async (action: string, flags: CliFlags) => {
+      await withContext(flags, async (ctx) => {
+        try {
+          const { Validator, ValidationCache } = await import('../validation/validator.js');
+          const validator = new Validator(ctx);
+          const cachePath = path.join(ctx.paths.fontistPath(), 'validation_cache.json');
+          const cacheData = (await fspReadJson(cachePath).catch(() => null)) as
+            | { generated_at: number; entries: [] }
+            | null;
+          const cache = cacheData === null ? ValidationCache.empty() : ValidationCache.fromData(cacheData);
+
+          if (action === 'report') {
+            const useCache = !flags.rebuild && !cache.stale() && cache.entries.length > 0;
+            const report = await validator.validateAll({
+              parallel: flags.parallel ?? false,
+              cache: useCache ? cache : null,
+              verbose: flags.verbose ?? false,
+            });
+            const format = flags.format ?? 'text';
+            if (format === 'json') {
+              ctx.ui.say(JSON.stringify(report.data, null, 2));
+            } else if (format === 'yaml') {
+              const YAML = await import('yaml');
+              ctx.ui.say(YAML.stringify(report.data, { lineWidth: 100 }));
+            } else {
+              ctx.ui.say(`Validation report (${report.data.platform}):`);
+              ctx.ui.say(`  Total fonts:   ${report.data.total_fonts}`);
+              ctx.ui.say(`  Valid:         ${report.data.valid_fonts}`);
+              ctx.ui.say(`  Invalid:       ${report.data.invalid_fonts}`);
+              ctx.ui.say(`  Total time:    ${report.data.total_time.toFixed(2)}s`);
+              for (const invalid of report.invalidResults()) {
+                ctx.ui.say(`  INVALID ${invalid.path}: ${invalid.error_message ?? 'unknown error'}`);
+              }
+            }
+            if (flags.output) {
+              const { atomicWriteFile } = await import('../util/fsx.js');
+              const content =
+                flags.format === 'json'
+                  ? JSON.stringify(report.data, null, 2)
+                  : flags.format === 'yaml'
+                    ? (await import('yaml')).stringify(report.data, { lineWidth: 100 })
+                    : JSON.stringify(report.data, null, 2);
+              await atomicWriteFile(flags.output, content);
+            }
+          } else if (action === 'cache') {
+            await validator.validateAll({ parallel: flags.parallel ?? false, cache: null, verbose: flags.verbose ?? false });
+            const { ValidationCache: VC } = await import('../validation/validator.js');
+            void VC;
+            ctx.ui.say('Validation cache built.');
+          } else {
+            ctx.ui.error(`Unknown validate action: ${action} (use report or cache)`);
+            process.exitCode = 1;
+          }
+        } catch (err) {
+          reportError(ctx, err as Error, flags);
+          process.exitCode = exitCodeFor(err as Error) ?? 1;
         }
       });
     });

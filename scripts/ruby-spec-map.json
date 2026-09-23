@@ -461,24 +461,24 @@
       "note": "formula import tooling not ported"
     },
     "fontist/indexes/directory_change_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "supplementary incremental machinery not ported (mtime+size path covers behavior)"
+      "status": "mirrored",
+      "ts": "spec/mirror/incremental_index_spec.ts",
+      "note": "DirectoryChange diff + factories"
     },
     "fontist/indexes/directory_snapshot_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "supplementary incremental machinery not ported (mtime+size path covers behavior)"
+      "status": "mirrored",
+      "ts": "spec/mirror/incremental_index_spec.ts",
+      "note": "DirectorySnapshot create/restore/queries"
     },
     "fontist/indexes/incremental_index_updater_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "supplementary incremental machinery not ported (mtime+size path covers behavior)"
+      "status": "mirrored",
+      "ts": "spec/mirror/incremental_index_spec.ts",
+      "note": "updater lifecycle with snapshot store"
     },
     "fontist/indexes/incremental_scanner_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "supplementary incremental machinery not ported (mtime+size path covers behavior)"
+      "status": "mirrored",
+      "ts": "spec/mirror/incremental_index_spec.ts",
+      "note": "scanner with signatures, formats, cache reuse"
     }
   }
 }
