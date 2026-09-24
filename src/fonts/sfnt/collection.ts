@@ -31,7 +31,7 @@ export class SfntCollection {
   face(index: number): SfntFont {
     const offset = this.faceOffsets[index];
     if (offset === undefined || offset >= this.data.length) {
-      throw new CollectionIndexError(`Font collection face index out of range: ${index}`);
+      throw new CollectionIndexError(`Collection index ${index} out of range. Valid range: 0-${this.faceCount() - 1}`);
     }
     return new SfntFont(this.data.subarray(offset));
   }

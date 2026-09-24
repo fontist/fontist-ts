@@ -415,7 +415,8 @@ describe('CLI', () => {
     expect(code).toBe(0);
     const output = env.ui.lines.join('\n');
     expect(output).toContain('CliSans-Regular.ttf');
-    expect(output).toContain('"type": "Regular"');
+    // Ruby prints YAML (print_yaml), not JSON
+    expect(output).toContain('type: Regular');
   });
 
   it('manifest install exits 5 for a missing manifest file', async () => {

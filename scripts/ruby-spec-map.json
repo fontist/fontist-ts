@@ -276,9 +276,9 @@
       "note": "Ruby file ops helper (unzip specific)"
     },
     "fontist/utils/system/run_powershell_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "PowerShell runner (Windows-only Ruby infra)"
+      "status": "mirrored",
+      "ts": "spec/mirror/platform_gating_spec.ts",
+      "note": "runPowershell PowerShellResult {stdout, stderr, success} with ENOENT -> unsuccessful result; injected runners cover FOD dispatch"
     },
     "fontist/utils/system_platform_override_spec.rb": {
       "status": "partial",
@@ -331,9 +331,9 @@
       "note": "windows_fod resource dispatch: Get/Add-WindowsCapability via injected runner, windir font delivery, WindowsFodInstallError message"
     },
     "fontist/resource_collection_spec.rb": {
-      "status": "not-ported",
-      "ts": null,
-      "note": "Ruby resource-collection helper not used by TS port"
+      "status": "partial",
+      "ts": "spec/formulaModels.spec.ts",
+      "note": "v5 resources map -> named Resource array with empty?/variable_font?/axes semantics covered by formula-model specs; ResourceCollection is the lutaml collection wrapper"
     },
     "fontist/macos/catalog/asset_spec.rb": {
       "status": "mirrored",

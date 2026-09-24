@@ -20,7 +20,42 @@ import { FormulasRepo } from '../repo/formulasRepo.js';
 import { PrivateRepos } from '../repo/privateRepos.js';
 import { updateFormulas } from '../repo/update.js';
 import { UI } from '../ui/ui.js';
-import { exitCodeFor, sizeLimitHint, STATUS_MISSING_FONT_ERROR, STATUS_SUCCESS, STATUS_UNKNOWN_ERROR } from './exitCodes.js';
+import {
+  exitCodeFor,
+  sizeLimitHint,
+  STATUS_MISSING_FONT_ERROR,
+  STATUS_SUCCESS,
+  STATUS_UNKNOWN_ERROR,
+  STATUS_NON_SUPPORTED_FONT_ERROR,
+  STATUS_SIZE_LIMIT_ERROR,
+  STATUS_MANUAL_FONT_ERROR,
+  STATUS_LICENSING_ERROR,
+  STATUS_MANIFEST_COULD_NOT_BE_FOUND_ERROR,
+  STATUS_MANIFEST_COULD_NOT_BE_READ_ERROR,
+  STATUS_FONT_INDEX_CORRUPTED,
+  STATUS_REPO_NOT_FOUND,
+  STATUS_MAIN_REPO_NOT_FOUND,
+  STATUS_FORMULA_NOT_FOUND,
+  STATUS_FONTCONFIG_NOT_FOUND,
+  STATUS_FONTCONFIG_FILE_NOT_FOUND,
+  STATUS_FONTIST_VERSION_ERROR,
+} from './exitCodes.js';
+import {
+  FontIndexCorrupted,
+  FontconfigFileNotFoundError,
+  FontconfigNotFoundError,
+  FontistVersionError,
+  FormulaNotFoundError,
+  LicensingError,
+  MainRepoNotFoundError,
+  ManualFontError,
+  RepoNotFoundError,
+  ManifestCouldNotBeFoundError,
+  ManifestCouldNotBeReadError,
+  MissingFontError,
+  SizeLimitError,
+  UnsupportedFontError,
+} from '../errors/errors.js';
 import * as fsp from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 
@@ -73,6 +108,7 @@ interface CliFlags {
   rebuild?: boolean;
   quiet?: boolean;
   cache?: boolean;
+  showTiming?: boolean;
   preferredFamily?: boolean;
   formulasPath?: string;
 }
@@ -271,9 +307,22 @@ installSpecOptions(program.command('install'))
           formatSpec: spec,
           interactive: process.stdin.isTTY === true,
         });
-        for (const failure of result.failures) {
-          reportError(ctx, failure.error, flags);
-          if (failure.error.name === 'SizeLimitError') ctx.ui.say(sizeLimitHint());
+        if (fonts.length > 1) {
+          if (result.successes.length > 0) {
+            ctx.ui.say(
+              `Successfully installed ${result.successes.length} font(s): ${result.successes.join(', ')}`,
+            );
+          }
+          if (result.failures.length > 0) {
+            ctx.ui.error(`Failed to install ${result.failures.length} font(s):`);
+            for (const failure of result.failures) {
+              ctx.ui.error(`  - ${failure.font}: ${errorTextFor(failure.error)}`);
+            }
+          }
+        } else {
+          for (const failure of result.failures) {
+            reportError(ctx, failure.error, flags);
+          }
         }
         if (result.failures.length > 0) {
           process.exitCode = exitCodeFor(result.failures[0]!.error) ?? 1;
@@ -672,6 +721,7 @@ program
     .command('manifest')
     .description('Install or locate fonts declared in a manifest file')
     .argument('<action>', 'install | locations')
+    .option('-t, --show-timing', 'Show timing information for manifest resolution')
     .argument('<file>', 'path to the manifest YAML')
     .action(async (action: string, file: string, flags: CliFlags) => {
       await withContext(flags, async (ctx) => {
@@ -685,10 +735,19 @@ program
               location: locationOption(flags),
               interactive: process.stdin.isTTY === true,
             });
-            ctx.ui.say(JSON.stringify(response, null, 2));
+            const YAML = await import('yaml');
+            ctx.ui.say(YAML.stringify(response, { lineWidth: 0 }));
           } else if (action === 'locations') {
+            const startTime = Date.now();
             const response = await manifest.locate(ctx, { locations: true });
-            ctx.ui.say(JSON.stringify(response, null, 2));
+            const YAML = await import('yaml');
+            ctx.ui.say(YAML.stringify(response, { lineWidth: 0 }));
+            if (flags.showTiming) {
+              ctx.ui.say('');
+              ctx.ui.say('Timing:');
+              ctx.ui.say(`  Manifest resolution time: ${((Date.now() - startTime) / 1000).toFixed(3)}s`);
+              ctx.ui.say(`  Fonts in manifest:         ${Object.keys(response).length}`);
+            }
           } else {
             ctx.ui.error(`Unknown manifest action: ${action} (use install or locations)`);
             process.exitCode = 1;
@@ -1167,11 +1226,58 @@ program
   return program;
 }
 
-function reportError(ctx: FontistContext, error: Error, flags: CliFlags): void {
-  ctx.ui.error(`${error.name}: ${error.message}`);
-  if (error.name === 'SizeLimitError') {
-    ctx.ui.say(sizeLimitHint());
+interface ErrorStatusEntry {
+  status: number;
+  mode?: 'append' | 'overwrite';
+  message?: string;
+}
+
+/** Ruby CLI::ERROR_TO_STATUS: per-class exit code plus message handling
+ * (:append appends a hint, :overwrite replaces the message text). */
+const ERROR_TO_STATUS: Array<[new (...args: never[]) => Error, ErrorStatusEntry]> = [
+  [UnsupportedFontError, { status: STATUS_NON_SUPPORTED_FONT_ERROR }],
+  [MissingFontError, { status: STATUS_MISSING_FONT_ERROR }],
+  [
+    SizeLimitError,
+    {
+      status: STATUS_SIZE_LIMIT_ERROR,
+      mode: 'append',
+      message: sizeLimitHint(),
+    },
+  ],
+  [ManualFontError, { status: STATUS_MANUAL_FONT_ERROR }],
+  [LicensingError, { status: STATUS_LICENSING_ERROR }],
+  [
+    ManifestCouldNotBeFoundError,
+    { status: STATUS_MANIFEST_COULD_NOT_BE_FOUND_ERROR, mode: 'overwrite', message: 'Manifest could not be found.' },
+  ],
+  [
+    ManifestCouldNotBeReadError,
+    { status: STATUS_MANIFEST_COULD_NOT_BE_READ_ERROR, mode: 'overwrite', message: 'Manifest could not be read.' },
+  ],
+  [FontIndexCorrupted, { status: STATUS_FONT_INDEX_CORRUPTED }],
+  [RepoNotFoundError, { status: STATUS_REPO_NOT_FOUND }],
+  [MainRepoNotFoundError, { status: STATUS_MAIN_REPO_NOT_FOUND }],
+  [FormulaNotFoundError, { status: STATUS_FORMULA_NOT_FOUND }],
+  [FontconfigNotFoundError, { status: STATUS_FONTCONFIG_NOT_FOUND }],
+  [FontconfigFileNotFoundError, { status: STATUS_FONTCONFIG_FILE_NOT_FOUND }],
+  [FontistVersionError, { status: STATUS_FONTIST_VERSION_ERROR }],
+];
+
+/** Error text per Ruby handle_error: :overwrite replaces, :append appends. */
+export function errorTextFor(error: Error): string {
+  for (const [cls, entry] of ERROR_TO_STATUS) {
+    if (error instanceof cls) {
+      if (entry.message && entry.mode === 'overwrite') return entry.message;
+      if (entry.message && entry.mode === 'append') return `${error.message} ${entry.message}`;
+      return error.message;
+    }
   }
+  return error.message;
+}
+
+function reportError(ctx: FontistContext, error: Error, flags: CliFlags): void {
+  ctx.ui.error(errorTextFor(error));
   if (flags.verbose) {
     ctx.ui.debug(error.stack ?? '');
   }
