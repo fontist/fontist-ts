@@ -35,7 +35,8 @@ export const STATUS_SIZE_LIMIT_ERROR = 12;
 export const STATUS_FORMULA_NOT_FOUND = 13;
 export const STATUS_FONTCONFIG_NOT_FOUND = 14;
 export const STATUS_FONTCONFIG_FILE_NOT_FOUND = 15;
-export const STATUS_FONTIST_VERSION_ERROR = 15;
+/** Ruby collision fix: 15 was shared with FONTCONFIG_FILE_NOT_FOUND. */
+export const STATUS_FONTIST_VERSION_ERROR = 17;
 export const STATUS_INVALID_CONFIG_ATTRIBUTE = 16;
 
 /** Maps an error to its CLI exit code, or null when unknown. */
