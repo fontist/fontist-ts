@@ -60,7 +60,7 @@ export class Downloader {
   }
 
   async download(url: string, options: DownloadOptions = {}): Promise<DownloadResult> {
-    const useCache = options.useCache ?? true;
+    const useCache = options.useCache ?? this.ctx.runtime?.useCache ?? true;
     if (useCache) {
       const cached = await this.cache.get(url);
       if (cached) {

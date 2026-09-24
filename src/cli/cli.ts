@@ -2,12 +2,12 @@
 import { Command } from 'commander';
 import { fileURLToPath } from 'node:url';
 import * as path from 'node:path';
-import { createContext, FONTIST_VERSION, type FontistContext } from '../context.js';
+import { createContext, FONTIST_VERSION, type FontistContext, type RuntimeOptions } from '../context.js';
+import { FontistPaths } from '../paths.js';
 import { FORMULAS_VERSION } from '../paths.js';
 import { Font } from '../api/font.js';
 import { Manifest } from '../api/manifest.js';
 import { isConfigKey } from '../config/config.js';
-import { DownloadCache } from '../download/downloadCache.js';
 import { InvalidConfigAttributeError } from '../errors/errors.js';
 import { FormatSpec, parseVariableAxes } from '../formula/formatSpec.js';
 import { FormulaRepository } from '../formula/formulaRepository.js';
@@ -22,6 +22,7 @@ import { updateFormulas } from '../repo/update.js';
 import { UI } from '../ui/ui.js';
 import { exitCodeFor, sizeLimitHint, STATUS_MISSING_FONT_ERROR, STATUS_SUCCESS, STATUS_UNKNOWN_ERROR } from './exitCodes.js';
 import * as fsp from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 
 async function fspReadJson(filePath: string): Promise<unknown> {
   return JSON.parse(await fsp.readFile(filePath, 'utf8'));
@@ -70,22 +71,54 @@ interface CliFlags {
   output?: string;
   parallel?: boolean;
   rebuild?: boolean;
+  quiet?: boolean;
+  cache?: boolean;
+  preferredFamily?: boolean;
+  formulasPath?: string;
 }
 
 
 let cliEnv: NodeJS.ProcessEnv = process.env;
 let cliUi: UI | null = null;
+/** Program-level options (commander keeps them off subcommand flags). */
+let globalFlags: CliFlags = {};
 
-function contextOptions(flags: CliFlags): { ui: UI } {
-  if (cliUi) return { ui: cliUi };
-  return { ui: new UI({ level: flags.verbose ? 'debug' : 'info' }) };
+function mergedFlags(flags: CliFlags): CliFlags {
+  return { ...globalFlags, ...flags };
+}
+
+function contextOptions(flags: CliFlags): { ui: UI; runtime: Partial<RuntimeOptions> } {
+  if (cliUi) {
+    return { ui: cliUi, runtime: runtimeOptions(flags) };
+  }
+  return {
+    ui: new UI({ level: flags.verbose ? 'debug' : 'info' }),
+    runtime: runtimeOptions(flags),
+  };
+}
+
+function runtimeOptions(flags: CliFlags): Partial<RuntimeOptions> {
+  return {
+    quiet: flags.quiet ?? false,
+    useCache: flags.cache === false ? false : true,
+    preferredFamily: flags.preferredFamily ?? false,
+    interactive: flags.interactive === false ? false : true,
+  };
 }
 
 async function withContext<T>(
-  flags: CliFlags,
+  rawFlags: CliFlags,
   fn: (ctx: FontistContext) => Promise<T>,
 ): Promise<T> {
+  const flags = mergedFlags(rawFlags);
   const ctx = await createContext(cliEnv, contextOptions(flags));
+  ctx.ui.setLevel(flags.verbose ? 'debug' : flags.quiet ? 'fatal' : 'info');
+  if (flags.preferredFamily) {
+    ctx.config.setRuntimeOverride('preferred_family', true);
+  }
+  if (flags.formulasPath) {
+    ctx.paths = new FontistPaths(ctx.paths.fontistPath(), null, flags.formulasPath);
+  }
   return fn(ctx);
 }
 
@@ -126,6 +159,39 @@ function formatSpecFrom(flags: CliFlags): FormatSpec | null {
 }
 
 
+async function cacheInfo(dirPath: string): Promise<{ size: number; files: number }> {
+  if (!existsSync(dirPath)) return { size: 0, files: 0 };
+  const entries = await walkFiles(dirPath);
+  let size = 0;
+  for (const file of entries) {
+    size += (await fsp.stat(file)).size;
+  }
+  return { size, files: entries.length };
+}
+
+async function directorySize(dirPath: string): Promise<number> {
+  const entries = await walkFiles(dirPath);
+  let size = 0;
+  for (const file of entries) {
+    size += (await fsp.stat(file)).size;
+  }
+  return size;
+}
+
+async function walkFiles(dirPath: string): Promise<string[]> {
+  const out: string[] = [];
+  if (!existsSync(dirPath)) return out;
+  const walk = async (current: string): Promise<void> => {
+    for (const entry of await fsp.readdir(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) await walk(full);
+      else if (entry.isFile()) out.push(full);
+    }
+  };
+  await walk(dirPath);
+  return out;
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -154,7 +220,12 @@ function createProgram(): Command {
     .name('fontist')
     .description('Install openly-licensed fonts via fontist formulas')
     .version(`fontist: ${FONTIST_VERSION}`)
-    .option('--verbose', 'show debug output');
+    .option('--verbose', 'show debug output')
+    .option('-q, --quiet', 'Hide all messages')
+    .option('-c, --no-cache', 'Avoid using cache during download')
+    .option('--preferred-family', 'Use Preferred Family when available')
+    .option('-i, --interactive', 'Interactive mode', true)
+    .option('--formulas-path <path>', 'Path to formulas');
 
 program
     .command('version')
@@ -290,16 +361,22 @@ program
 program
     .command('fontconfig')
     .description('Fontconfig integration')
-    .argument('<action>', 'update')
+    .argument('<action>', 'update | remove')
     .action(async (action: string, flags: CliFlags) => {
       await withContext(flags, async (ctx) => {
         try {
-          if (action !== 'update') {
-            ctx.ui.error(`Unknown fontconfig action: ${action} (use update)`);
+          if (action === 'update') {
+            await new Fontconfig(ctx).update();
+            process.exitCode = STATUS_SUCCESS;
+          } else if (action === 'remove') {
+            await Fontconfig.remove(ctx, { force: flags.force });
+            ctx.ui.say('Fontconfig file has been successfully removed.');
+            process.exitCode = STATUS_SUCCESS;
+          } else {
+            ctx.ui.error(`Unknown fontconfig action: ${action} (use update or remove)`);
             process.exitCode = 1;
             return;
           }
-          await new Fontconfig(ctx).update();
         } catch (err) {
           reportError(ctx, err as Error, flags);
           process.exitCode = exitCodeFor(err as Error) ?? 1;
@@ -626,7 +703,7 @@ program
 program
     .command('config')
     .description('Manage fontist configuration')
-    .argument('<action>', 'get | set | delete | list')
+    .argument('<action>', 'get | set | delete | list | show | keys')
     .argument('[key]')
     .argument('[value]')
     .action(async (action: string, key: string | undefined, value: string | undefined, flags: CliFlags) => {
@@ -658,8 +735,32 @@ program
               await ctx.config.save(ctx.paths.configYmlPath());
               break;
             }
+            case 'show': {
+              const values = ctx.config.customValues();
+              const entries = Object.entries(values);
+              if (entries.length === 0) {
+                ctx.ui.say('Config is empty.');
+              } else {
+                ctx.ui.say('Current config:');
+                const YAML2 = await import('yaml');
+                const formatted = YAML2.stringify(Object.fromEntries(entries), { lineWidth: 100 })
+                  .replace(/^---.*$/m, '')
+                  .trim();
+                ctx.ui.say(formatted);
+              }
+              process.exitCode = STATUS_SUCCESS;
+              break;
+            }
+            case 'keys': {
+              ctx.ui.say('Available keys:');
+              for (const [cfgKey, cfgValue] of Object.entries(ctx.config.defaultValues())) {
+                ctx.ui.say(`${cfgKey} (default: ${String(cfgValue)})`);
+              }
+              process.exitCode = STATUS_SUCCESS;
+              break;
+            }
             default:
-              ctx.ui.error(`Unknown config action: ${action} (use get, set, delete or list)`);
+              ctx.ui.error(`Unknown config action: ${action} (use get, set, delete, list, show, or keys)`);
               process.exitCode = 1;
           }
         } catch (err) {
@@ -671,23 +772,61 @@ program
 
 program
     .command('cache')
-    .description('Manage the download cache')
-    .argument('<action>', 'clear | path')
+    .description('Manage fontist cache')
+    .argument('<action>', 'path | clear | clear-import | info')
     .action(async (action: string, flags: CliFlags) => {
       await withContext(flags, async (ctx) => {
-        const cache = new DownloadCache(ctx);
-        if (action === 'clear') {
-          await cache.clear();
-          ctx.ui.say(`Download cache cleared: ${cache.mapPath()}`);
-        } else if (action === 'path') {
-          ctx.ui.say(cache.directory());
-        } else {
-          ctx.ui.error(`Unknown cache action: ${action} (use clear or path)`);
-          process.exitCode = 1;
+        try {
+          if (action === 'path') {
+            ctx.ui.say(ctx.paths.downloadsPath());
+            process.exitCode = STATUS_SUCCESS;
+          } else if (action === 'clear') {
+            const downloadsPath = ctx.paths.downloadsPath();
+            if (existsSync(downloadsPath)) {
+              await fsp.rm(downloadsPath, { recursive: true, force: true });
+            }
+            // Ruby clear_indexes: drop system index files (and stale locks)
+            for (const indexFile of [ctx.paths.systemIndexPath()]) {
+              await fsp.rm(indexFile, { force: true });
+              await fsp.rm(`${indexFile}.lock`, { force: true });
+            }
+            ctx.ui.say('Cache has been successfully removed.');
+            process.exitCode = STATUS_SUCCESS;
+          } else if (action === 'clear-import') {
+            const importPath = ctx.paths.importCachePath(ctx.env);
+            if (existsSync(importPath)) {
+              const size = await directorySize(importPath);
+              await fsp.rm(importPath, { recursive: true, force: true });
+              ctx.ui.say(`Import cache cleared: ${formatBytes(size)}`);
+            } else {
+              ctx.ui.say('Import cache is already empty');
+            }
+            process.exitCode = STATUS_SUCCESS;
+          } else if (action === 'info') {
+            const downloadsPath = ctx.paths.downloadsPath();
+            const importPath = ctx.paths.importCachePath(ctx.env);
+            const downloadInfo = await cacheInfo(downloadsPath);
+            const importInfo = await cacheInfo(importPath);
+            ctx.ui.say('Font download cache:');
+            ctx.ui.say(`  Location: ${downloadsPath}`);
+            ctx.ui.say(`  Size: ${formatBytes(downloadInfo.size)}`);
+            ctx.ui.say(`  Files: ${downloadInfo.files}`);
+            ctx.ui.say('');
+            ctx.ui.say('Import cache:');
+            ctx.ui.say(`  Location: ${importPath}`);
+            ctx.ui.say(`  Size: ${formatBytes(importInfo.size)}`);
+            ctx.ui.say(`  Files: ${importInfo.files}`);
+            process.exitCode = STATUS_SUCCESS;
+          } else {
+            ctx.ui.error(`Unknown cache action: ${action} (use path, clear, clear-import, or info)`);
+            process.exitCode = STATUS_UNKNOWN_ERROR;
+          }
+        } catch (err) {
+          reportError(ctx, err as Error, flags);
+          process.exitCode = exitCodeFor(err as Error) ?? 1;
         }
       });
     });
-
 program
     .command('index')
     .description('Manage system font index')
@@ -1048,6 +1187,14 @@ export async function runCli(
   const program = createProgram();
   program.exitOverride();
   process.exitCode = 0;
+  globalFlags = {};
+  // Actions run during parse; capture program-level options before each.
+  program.hook('preAction', (thisCommand, actionCommand) => {
+    globalFlags = {
+      ...(thisCommand.opts() as CliFlags),
+      ...(actionCommand.optsWithGlobals() as CliFlags),
+    };
+  });
   try {
     await program.parseAsync(argv, { from: 'user' });
   } catch (err) {

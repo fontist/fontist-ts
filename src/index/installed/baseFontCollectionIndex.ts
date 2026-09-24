@@ -226,10 +226,9 @@ export abstract class BaseFontCollectionIndex {
       );
       return [];
     }
-    const faces =
-      fontFile.format === 'ttc' || fontFile.format === 'otc'
-        ? this.collectionFaces(fontPath, bytes)
-        : [fontFile];
+    const isCollection = fontFile.format === 'ttc' || fontFile.format === 'otc';
+    this.checkExtensionWarning(fontPath, isCollection, bytes, fontFile);
+    const faces = isCollection ? this.collectionFaces(fontPath, bytes) : [fontFile];
     const entries: SystemIndexFont[] = [];
     for (const face of faces) {
       if (!face.familyName || !face.fullName || !face.subfamilyName) {
@@ -261,6 +260,40 @@ export abstract class BaseFontCollectionIndex {
 
   /** Parses a collection once and yields one FontFile per face — reading
    * the file again per face would make large system TTC scans quadratic. */
+  /** Ruby FontFile.check_extension_warning: warns on content/extension
+   * mismatches but never fails indexing. */
+  private checkExtensionWarning(filePath: string, isCollection: boolean, bytes: Buffer, fontFile: FontFile): void {
+    try {
+      const expectedExt = extnameOf(filePath);
+      const collectionExtensions = ['ttc', 'otc', 'dfont'];
+      const base = filePath.split('/').pop() ?? filePath;
+
+      if (isCollection && !collectionExtensions.includes(expectedExt)) {
+        this.ctx.ui.warn(
+          `WARNING: File '${base}' has extension '.${expectedExt}' ` +
+            'but appears to be a font collection (.ttc/.otc/.dfont). ' +
+            'The file will be indexed, but consider renaming for clarity.',
+        );
+      } else if (!isCollection && collectionExtensions.includes(expectedExt)) {
+        this.ctx.ui.warn(
+          `WARNING: File '${base}' has collection extension '.${expectedExt}' ` +
+            `but appears to be a single font (.${fontFileFormat(fontFileFormatTag(bytes))}). ` +
+            'The file will be indexed, but consider renaming for clarity.',
+        );
+      } else if (!isCollection && expectedExt !== fontFile.format && expectedExt !== '') {
+        this.ctx.ui.warn(
+          `WARNING: File '${base}' has extension '.${expectedExt}' ` +
+            `but appears to be a ${fontFile.format.toUpperCase()} font. ` +
+            'The file will be indexed, but consider renaming for clarity.',
+        );
+      }
+    } catch (err) {
+      this.ctx.ui.debug(
+        `Could not detect file format for warning: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   private collectionFaces(fontPath: string, bytes: Buffer): FontFile[] {
     const collection = new SfntCollection(bytes);
     const faces: FontFile[] = [];
@@ -275,5 +308,31 @@ export abstract class BaseFontCollectionIndex {
       }
     }
     return faces;
+  }
+}
+
+function extnameOf(filePath: string): string {
+  const base = filePath.split('/').pop() ?? filePath;
+  const dot = base.lastIndexOf('.');
+  return dot <= 0 ? '' : base.slice(dot + 1).toLowerCase();
+}
+
+function fontFileFormatTag(bytes: Buffer): string {
+  return bytes.subarray(0, 4).toString('latin1');
+}
+
+function fontFileFormat(tag: string): string {
+  switch (tag) {
+    case '\x00\x01\x00\x00':
+    case 'true':
+      return 'ttf';
+    case 'OTTO':
+      return 'otf';
+    case 'wOFF':
+      return 'woff';
+    case 'wOF2':
+      return 'woff2';
+    default:
+      return 'unknown';
   }
 }

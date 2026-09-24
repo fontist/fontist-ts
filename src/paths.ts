@@ -11,6 +11,7 @@ export class FontistPaths {
   constructor(
     private readonly root: string,
     private readonly fontsDirOverride: string | null = null,
+    private readonly formulasDirOverride: string | null = null,
   ) {}
 
   static resolve(env: NodeJS.ProcessEnv): FontistPaths {
@@ -45,6 +46,7 @@ export class FontistPaths {
   }
 
   formulasPath(): string {
+    if (this.formulasDirOverride) return this.formulasDirOverride;
     return path.join(this.formulasRepoPath(), 'Formulas');
   }
 

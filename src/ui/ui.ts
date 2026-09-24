@@ -4,7 +4,7 @@ export interface UiWriter {
   write(text: string): void;
 }
 
-export type UiLevel = 'debug' | 'info';
+export type UiLevel = 'debug' | 'info' | 'fatal';
 
 export interface UiOptions {
   out?: UiWriter;
@@ -36,11 +36,13 @@ export class UI {
   }
 
   say(message: string): void {
+    if (this.level === 'fatal') return;
     this.clearProgressLine();
     this.out.write(`${message}\n`);
   }
 
   error(message: string): void {
+    if (this.level === 'fatal') return;
     this.clearProgressLine();
     this.err.write(`${message}\n`);
   }
