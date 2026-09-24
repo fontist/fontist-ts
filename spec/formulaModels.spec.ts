@@ -1,3 +1,4 @@
+// Mirrors spec/fontist/resource_collection_spec.rb (Ruby gem) among the formula-model behaviors below.
 import { describe, expect, it } from 'vitest';
 import { Formula, keyFromPath, titleize } from '../src/formula/formula.js';
 import { GoogleImportSource, MacosImportSource } from '../src/formula/importSources.js';
@@ -177,5 +178,41 @@ resources:
     expect(keyFromPath('/r/Formulas/andale.yml', '/r/Formulas')).toBe('andale');
     expect(titleize('macos/inaimathi')).toBe('Macos/Inaimathi');
     expect(titleize('adobe_reader_19')).toBe('Adobe Reader 19');
+  });
+});
+
+describe('ResourceCollection semantics (v5 resources map)', () => {
+  it('parses a v5 resources mapping into named resources', () => {
+    const formula = new Formula({
+      schema_version: 5,
+      name: 'Mapped Resources',
+      resources: {
+        font_zip: { source: 'archive', urls: ['https://example.com/a.zip'], format: 'ttf' },
+        woff_pack: { source: 'archive', urls: ['https://example.com/b.zip'], variable_axes: 'wght' },
+      },
+    });
+    expect(formula.resources).toHaveLength(2);
+    const names = formula.resources.map((r) => r.name);
+    expect(names).toEqual(expect.arrayContaining(['font_zip', 'woff_pack']));
+
+    const zip = formula.resources.find((r) => r.name === 'font_zip')!;
+    expect(zip.source).toBe('archive');
+    expect(zip.isEmpty()).toBe(false);
+    expect(zip.isVariableFont()).toBe(false);
+    expect(zip.isCollectionFile()).toBe(false);
+
+    const variable = formula.resources.find((r) => r.name === 'woff_pack')!;
+    expect(variable.isVariableFont()).toBe(true);
+    expect(variable.axesSubsetOf(['wght'])).toBe(true);
+    expect(variable.axesSubsetOf(['wght', 'wdth'])).toBe(false);
+  });
+
+  it('treats a resource without urls/files/capability as empty', () => {
+    const formula = new Formula({
+      schema_version: 5,
+      name: 'Empty Resource',
+      resources: { empty_res: { source: 'archive' } },
+    });
+    expect(formula.resources[0]!.isEmpty()).toBe(true);
   });
 });

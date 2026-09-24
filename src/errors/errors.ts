@@ -12,7 +12,11 @@ export class FontistError extends Error {
 
 export class FormulaNotFoundError extends FontistError {
   constructor(query: string) {
-    super(`Could not find formula "${query}" in the known formulas repositories.`);
+    super(
+      `Formula '${query}' not found locally nor available in the Fontist formula repository.\n` +
+        'Perhaps it is available at the latest Fontist formula repository.\n' +
+        'You can update the formula repository using the command `fontist update` and try again.',
+    );
   }
 }
 
@@ -217,6 +221,28 @@ export class FontExtractError extends FontistError {}
 
 export class CollectionIndexError extends FontistError {}
 
+export class FormulaIndexNotFoundError extends FontistError {}
+
+export class MissingAttributeError extends FontistError {}
+
+export class SourceNotFoundError extends FontistError {
+  constructor(path: string) {
+    super(`Source font file not found: ${path}`);
+  }
+}
+
+export class TranscodeToolNotFoundError extends FontistError {
+  constructor(toolName: string) {
+    super(`Transcode tool '${toolName}' not found. Please install the required package.`);
+  }
+}
+
+export class VariableAxesNotSupportedError extends FontistError {
+  constructor(fontName: string, requestedAxes: string[]) {
+    super(`Variable axes ${requestedAxes.join(', ')} not supported by font '${fontName}'`);
+  }
+}
+
 // ── Infrastructure ──────────────────────────────────────────────────────────
 
 export class RepoNotFoundError extends FontistError {
@@ -269,12 +295,10 @@ export class FormatNotAvailableError extends FontistError {
     requestedFormat: string | null | undefined,
     availableFormats: (string | null | undefined)[],
   ) {
-    const available = availableFormats.filter(Boolean);
+    const available = availableFormats.filter((f): f is string => Boolean(f));
     super(
-      `Format "${requestedFormat ?? '(any)'}" is not available for font "${font}".` +
-        (available.length > 0
-          ? ` Available formats: ${available.join(', ')}.`
-          : ' No formats are declared in the formulas.'),
+      `Format '${requestedFormat ?? ''}' not available for font '${font}'. ` +
+        `Available formats: ${available.join(', ')}`,
     );
   }
 }

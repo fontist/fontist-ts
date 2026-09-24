@@ -1,5 +1,6 @@
-// Mirrors spec/fontist/macos_ondemand_fonts_spec.rb and
-// spec/fontist/windows_ondemand_fonts_spec.rb (Ruby gem), plus the
+// Mirrors spec/fontist/macos_ondemand_fonts_spec.rb,
+// spec/fontist/windows_ondemand_fonts_spec.rb, and
+// spec/fontist/utils/system/run_powershell_spec.rb (Ruby gem), plus the
 // Utils::System behaviors those flows rely on.
 import { promises as fsp } from 'node:fs';
 import * as os from 'node:os';
@@ -15,9 +16,11 @@ import {
 } from '../../src/errors/errors.js';
 import {
   catalogVersionForMacos,
+  defaultRunPowershell,
   macosVersion,
   parseMacosVersion,
   parsePlatformOverride,
+  runPowershell,
   versionInRange,
   type RunPowershell,
 } from '../../src/system/systemUtils.js';
@@ -314,5 +317,24 @@ describe('Windows on-demand FOD resource dispatch', () => {
     ).powershell = powershell;
     await installer.files([], async () => {});
     expect(commands[0]).toContain("'Weird''Name'");
+  });
+});
+
+describe('Utils::System.run_powershell', () => {
+  it('reports an unsuccessful result when powershell.exe is missing', async () => {
+    if (process.platform === 'win32') return; // powershell.exe exists there
+    const result = await defaultRunPowershell('Write-Output hi');
+    expect(result.success).toBe(false);
+    expect(result.stderr).toContain('powershell.exe not found');
+    expect(result.stdout).toBe('');
+  });
+
+  it('propagates stdout/stderr/success from the injected runner', async () => {
+    const result = await runPowershell('anything', async () => ({
+      stdout: 'Installed\n',
+      stderr: 'boom\n',
+      success: true,
+    }));
+    expect(result).toEqual({ stdout: 'Installed\n', stderr: 'boom\n', success: true });
   });
 });
