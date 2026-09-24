@@ -1,7 +1,7 @@
 import type { FontistContext } from '../../context.js';
 import type { FormatMatcher } from '../../formula/formatMatcher.js';
-import { scanFontPaths } from '../../system/pathScanning.js';
-import { systemFontPaths, systemTemplateBaseDirs } from '../../system/systemFontsData.js';
+import { scanFontPaths, scanFontTargets } from '../../system/pathScanning.js';
+import { systemFontScanTargets, systemTemplateBaseDirs } from '../../system/systemFontsData.js';
 import { BaseFontCollectionIndex } from './baseFontCollectionIndex.js';
 
 /** Fonts installed under the Fontist-managed directory (`~/.fontist/fonts`). */
@@ -49,7 +49,7 @@ export class SystemIndex extends BaseFontCollectionIndex {
   }
 
   protected async fontPaths(): Promise<string[]> {
-    return scanFontPaths(await systemFontPaths(this.ctx));
+    return scanFontTargets(await systemFontScanTargets(this.ctx));
   }
 
   protected async monitoredDirectories(): Promise<string[]> {

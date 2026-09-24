@@ -1,8 +1,8 @@
 import { promises as fsp } from 'node:fs';
 import type { FontistContext } from '../context.js';
 import { FontFile } from '../fonts/fontFile.js';
-import { scanFontPaths } from '../system/pathScanning.js';
-import { systemFontPaths } from '../system/systemFontsData.js';
+import { scanFontTargets } from '../system/pathScanning.js';
+import { systemFontScanTargets } from '../system/systemFontsData.js';
 import { defaultUserFontPath } from '../system/fontDirs.js';
 import { mapWithConcurrency } from '../util/concurrency.js';
 
@@ -246,15 +246,10 @@ export class Validator {
   }
 
   private async scanFontPaths(): Promise<string[]> {
-    const dirs = [
-      ...(await systemFontPaths(this.ctx)),
-      defaultUserFontPath(this.ctx.platform, this.ctx.env),
-      this.ctx.paths.fontsPath(),
-    ];
-    const results: string[] = [];
-    for (const dir of dirs) {
-      results.push(...(await scanFontPaths([dir])));
-    }
+    const targets = await systemFontScanTargets(this.ctx);
+    targets.push({ dir: defaultUserFontPath(this.ctx.platform, this.ctx.env) });
+    targets.push({ dir: this.ctx.paths.fontsPath() });
+    const results = await scanFontTargets(targets);
     return Array.from(new Set(results)).sort();
   }
 }

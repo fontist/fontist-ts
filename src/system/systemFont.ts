@@ -2,8 +2,8 @@ import type { FontistContext } from '../context.js';
 import type { FormatMatcher } from '../formula/formatMatcher.js';
 import type { SystemIndexFont } from '../index/installed/systemIndexFont.js';
 import { FontistIndex, SystemIndex, UserIndex } from '../index/installed/collectionIndexes.js';
-import { scanFontPaths } from './pathScanning.js';
-import { systemFontPaths } from './systemFontsData.js';
+import { scanFontPaths, scanFontTargets } from './pathScanning.js';
+import { systemFontScanTargets } from './systemFontsData.js';
 import { defaultUserFontPath } from './fontDirs.js';
 
 export interface FoundStyle {
@@ -73,11 +73,11 @@ export class SystemFont {
 
   /** All font files visible to the system/user scopes. */
   async fontPaths(): Promise<string[]> {
-    const dirs = [
-      ...(await systemFontPaths(this.ctx)),
-      defaultUserFontPath(this.ctx.platform, this.ctx.env),
-    ];
-    return scanFontPaths(dirs);
+    const targets = await systemFontScanTargets(this.ctx);
+    targets.push({ dir: defaultUserFontPath(this.ctx.platform, this.ctx.env) });
+    const systemFonts = await scanFontTargets(targets);
+    const fontistFonts = await scanFontPaths([this.ctx.paths.fontsPath()]);
+    return [...new Set([...systemFonts, ...fontistFonts])];
   }
 
   enableFindStylesCache(): this {
