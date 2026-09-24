@@ -845,7 +845,11 @@ program
               await fsp.rm(downloadsPath, { recursive: true, force: true });
             }
             // Ruby clear_indexes: drop system index files (and stale locks)
-            for (const indexFile of [ctx.paths.systemIndexPath()]) {
+            const preferredIndex = path.join(
+              path.dirname(ctx.paths.systemIndexPath()),
+              'system_index.preferred_family.yml',
+            );
+            for (const indexFile of [ctx.paths.systemIndexPath(), preferredIndex]) {
               await fsp.rm(indexFile, { force: true });
               await fsp.rm(`${indexFile}.lock`, { force: true });
             }
@@ -898,8 +902,8 @@ program
       await withContext(flags, async (ctx) => {
         try {
           const { SystemIndex } = await import('../index/installed/collectionIndexes.js');
-          const { scanFontPaths } = await import('../system/pathScanning.js');
-          const { systemFontPaths } = await import('../system/systemFontsData.js');
+          const { scanFontTargets } = await import('../system/pathScanning.js');
+          const { systemFontScanTargets } = await import('../system/systemFontsData.js');
           const { defaultUserFontPath } = await import('../system/fontDirs.js');
           const YAML = await import('yaml');
           const index = new SystemIndex(ctx);
@@ -907,12 +911,10 @@ program
 
           if (action === 'rebuild') {
             const startTime = Date.now();
-            const dirs = [
-              ...(await systemFontPaths(ctx)),
-              defaultUserFontPath(ctx.platform, ctx.env),
-              ctx.paths.fontsPath(),
-            ];
-            const allFonts = await scanFontPaths(dirs);
+            const targets = await systemFontScanTargets(ctx);
+            targets.push({ dir: defaultUserFontPath(ctx.platform, ctx.env) });
+            targets.push({ dir: ctx.paths.fontsPath() });
+            const allFonts = await scanFontTargets(targets);
             const byDir = new Map<string, number>();
             for (const fontPath of allFonts) {
               const dir = path.dirname(fontPath);
