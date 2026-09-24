@@ -13,12 +13,21 @@ export const FONTIST_VERSION = (
   ) as { version: string }
 ).version;
 
+/** Per-invocation CLI class options (Ruby CLI::ClassOptions handle_class_options). */
+export interface RuntimeOptions {
+  quiet: boolean;
+  useCache: boolean;
+  preferredFamily: boolean;
+  interactive: boolean;
+}
+
 export interface FontistContext {
   config: Config;
   paths: FontistPaths;
   ui: UI;
   env: NodeJS.ProcessEnv;
   platform: FontistPlatform;
+  runtime: RuntimeOptions;
 }
 
 /** Resolves the effective platform, honoring FONTIST_PLATFORM_OVERRIDE
@@ -51,6 +60,7 @@ export async function createContext(
     ui?: UI;
     config?: Config;
     platform?: FontistPlatform;
+    runtime?: Partial<RuntimeOptions>;
   } = {},
 ): Promise<FontistContext> {
   const paths = options.paths ?? FontistPaths.resolve(env);
@@ -58,11 +68,20 @@ export async function createContext(
   const config =
     options.config ?? (await Config.fromFile(paths.configYmlPath(), configEnv));
   const ui = options.ui ?? new UI();
+  const runtime: RuntimeOptions = {
+    quiet: false,
+    useCache: true,
+    preferredFamily: false,
+    interactive: true,
+    ...options.runtime,
+  };
+
   return {
     config,
     paths,
     ui,
     env,
     platform: options.platform ?? resolvePlatform(env, process.platform),
+    runtime,
   };
 }

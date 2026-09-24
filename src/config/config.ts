@@ -88,6 +88,10 @@ export class Config {
   }
 
   get<K extends ConfigKey>(key: K): ConfigValues[K] {
+    const override = this.runtimeOverrides[key];
+    if (override !== undefined && override !== null) {
+      return override as ConfigValues[K];
+    }
     const value = this.custom[key];
     if (value !== undefined && value !== null) {
       return value;
@@ -102,6 +106,26 @@ export class Config {
 
   delete(key: ConfigKey): void {
     delete this.custom[key];
+  }
+
+  private runtimeOverrides: Partial<ConfigValues> = {};
+
+  /** In-memory override (CLI --preferred-family); never persisted. */
+  setRuntimeOverride<K extends ConfigKey>(key: K, value: ConfigValues[K]): void {
+    this.runtimeOverrides[key] = value;
+  }
+
+  defaultValues(): Record<ConfigKey, ConfigValues[ConfigKey]> {
+    const all = {} as Record<ConfigKey, ConfigValues[ConfigKey]>;
+    for (const key of KNOWN_KEYS) {
+      const fallback = DEFAULTS[key];
+      all[key] = (fallback === undefined ? null : fallback) as ConfigValues[ConfigKey];
+    }
+    return all;
+  }
+
+  defaultValue(key: ConfigKey): ConfigValues[ConfigKey] | null {
+    return (DEFAULTS[key] ?? null) as ConfigValues[ConfigKey] | null;
   }
 
   customValues(): Partial<ConfigValues> {

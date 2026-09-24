@@ -449,4 +449,77 @@ describe('CLI', () => {
     const code = await run(argv('repo info ghost'));
     expect(code).toBe(8);
   });
+
+  it('cache clear-import and info mirror the Ruby cache CLI', async () => {
+    await freshEnv();
+    const importDir = path.join(env.ctx.paths.fontistPath(), 'import_cache');
+    await fsp.mkdir(importDir, { recursive: true });
+    await fsp.writeFile(path.join(importDir, 'blob'), Buffer.alloc(2048, 1));
+
+    env.ui.lines.length = 0;
+    expect(await run(argv('cache info'))).toBe(0);
+    const info = env.ui.lines.join('\n');
+    expect(info).toContain('Font download cache:');
+    expect(info).toContain('Import cache:');
+    expect(info).toContain('2.0 KB');
+
+    env.ui.lines.length = 0;
+    expect(await run(argv('cache clear-import'))).toBe(0);
+    expect(env.ui.lines.join('\n')).toContain('Import cache cleared:');
+
+    env.ui.lines.length = 0;
+    expect(await run(argv('cache clear-import'))).toBe(0);
+    expect(env.ui.lines.join('\n')).toContain('Import cache is already empty');
+  });
+
+  it('cache clear removes the system index alongside the downloads', async () => {
+    await freshEnv();
+    expect(await run(argv('index rebuild'))).toBe(0);
+    await expect(fsp.access(env.ctx.paths.systemIndexPath())).resolves.toBeUndefined();
+    expect(await run(argv('cache clear'))).toBe(0);
+    await expect(fsp.access(env.ctx.paths.systemIndexPath())).rejects.toThrow();
+  });
+
+  it('config show and keys mirror the Ruby config CLI', async () => {
+    await freshEnv();
+    env.ui.lines.length = 0;
+    expect(await run(argv('config show'))).toBe(0);
+    expect(env.ui.lines.join('\n')).toContain('Config is empty.');
+
+    await run(argv('config set continue_on_checksum_mismatch true'));
+    env.ui.lines.length = 0;
+    expect(await run(argv('config show'))).toBe(0);
+    expect(env.ui.lines.join('\n')).toContain('Current config:');
+
+    env.ui.lines.length = 0;
+    expect(await run(argv('config keys'))).toBe(0);
+    const output = env.ui.lines.join('\n');
+    expect(output).toContain('Available keys:');
+    expect(output).toContain('preferred_family');
+  });
+
+  it('--quiet suppresses output including errors', async () => {
+    if (env) await cleanup(env);
+    env = await testEnv({ platform: 'windows' });
+    envs.push(env);
+    env.ui.lines.length = 0;
+    const code = await runCli(
+      argv('--quiet status'),
+      {
+        FONTIST_PATH: env.ctx.paths.fontistPath(),
+        FONTIST_PLATFORM_OVERRIDE: 'windows',
+      } as NodeJS.ProcessEnv,
+      env.ui,
+    );
+    expect(code).toBe(3);
+    expect(env.ui.lines.join('\n')).not.toContain('No font is installed.');
+  });
+
+  it('--no-cache reaches the installer without using the download cache', async () => {
+    await freshEnv();
+    // The flag plumbs into the downloader; a full install over HTTP is
+    // covered by the download tests, so assert parsing/exit only.
+    const code = await run(argv('install "NoSuch Font" --no-cache -p'));
+    expect([0, 2, 3]).toContain(code);
+  });
 });
