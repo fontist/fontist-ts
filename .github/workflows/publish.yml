@@ -1,60 +1,55 @@
 name: publish
 
-# Publishes @fontist/fontist to npm via Trusted Publishing (OIDC) — no
-# npm token secret involved. Requires the package's Trusted Publisher
-# entry on npmjs.com to point at this repo and this workflow file.
-#
-# Triggers:
-# - publishing a GitHub Release (the documented release flow, RELEASING.md)
-# - manual dispatch (defaults to the selected ref)
-
 on:
-  release:
-    types: [released]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 1.1.0)'
+        required: true
+        type: string
 
 permissions:
-  contents: read
   id-token: write
+  contents: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-
-      # setup-node writes `_authToken=${NODE_AUTH_TOKEN}` (placeholder when
-      # no secret exists) and `always-auth` into .npmrc; either makes npm
-      # demand credentials (ENEEDAUTH) instead of using the Actions OIDC
-      # token. Replace the file with the bare registry line and ensure the
-      # npm CLI supports trusted publishing (>= 11.5.1).
-      - name: Prepare .npmrc for trusted publishing
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: Set version from workflow input
+        if: github.event_name == 'workflow_dispatch'
         run: |
-          echo 'registry=https://registry.npmjs.org/' > ~/.npmrc
-          npm install -g npm@latest
-
-      - name: Install
-        run: npm ci
-
-      - name: Gates
-        run: |
-          npm run lint
-          npm run typecheck
-          npm run build
-          npm test
-
-      - name: Verify version is unpublished
-        run: |
-          VERSION="@$npm_package_name@$npm_package_version"
-          if npm view "$VERSION" version >/dev/null 2>&1; then
-            echo "::error::$VERSION is already published; versions are permanent"
-            exit 1
+          current=$(node -p "require('./package.json').version")
+          if [ "$current" != "${{ inputs.version }}" ]; then
+            npm version ${{ inputs.version }} --no-git-tag-version
           fi
+      - run: npm publish
 
-      - name: Publish
-        run: npm publish
+  github-release:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
