@@ -1,0 +1,50 @@
+name: publish
+
+# Publishes @fontist/fontist to npm via Trusted Publishing (OIDC) — no
+# npm token secret involved. Requires the package's Trusted Publisher
+# entry on npmjs.com to point at this repo and this workflow file.
+#
+# Triggers:
+# - publishing a GitHub Release (the documented release flow, RELEASING.md)
+# - manual dispatch (defaults to the selected ref)
+
+on:
+  release:
+    types: [released]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install
+        run: npm ci
+
+      - name: Gates
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run build
+          npm test
+
+      - name: Verify version is unpublished
+        run: |
+          VERSION="@$npm_package_name@$npm_package_version"
+          if npm view "$VERSION" version >/dev/null 2>&1; then
+            echo "::error::$VERSION is already published; versions are permanent"
+            exit 1
+          fi
+
+      - name: Publish
+        run: npm publish
