@@ -28,12 +28,15 @@ jobs:
           node-version: 24
           registry-url: 'https://registry.npmjs.org'
 
-      # setup-node writes `_authToken=${NODE_AUTH_TOKEN}` into .npmrc with a
-      # placeholder value when no secret exists; npm would then send that
-      # garbage token instead of falling back to OIDC. Remove it — trusted
-      # publishing exchanges the Actions OIDC token itself.
-      - name: Clear placeholder auth token
-        run: npm config delete '//registry.npmjs.org/:_authToken' || true
+      # setup-node writes `_authToken=${NODE_AUTH_TOKEN}` (placeholder when
+      # no secret exists) and `always-auth` into .npmrc; either makes npm
+      # demand credentials (ENEEDAUTH) instead of using the Actions OIDC
+      # token. Replace the file with the bare registry line and ensure the
+      # npm CLI supports trusted publishing (>= 11.5.1).
+      - name: Prepare .npmrc for trusted publishing
+        run: |
+          echo 'registry=https://registry.npmjs.org/' > ~/.npmrc
+          npm install -g npm@latest
 
       - name: Install
         run: npm ci
