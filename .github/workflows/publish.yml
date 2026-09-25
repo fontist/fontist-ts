@@ -28,6 +28,13 @@ jobs:
           node-version: 24
           registry-url: 'https://registry.npmjs.org'
 
+      # setup-node writes `_authToken=${NODE_AUTH_TOKEN}` into .npmrc with a
+      # placeholder value when no secret exists; npm would then send that
+      # garbage token instead of falling back to OIDC. Remove it — trusted
+      # publishing exchanges the Actions OIDC token itself.
+      - name: Clear placeholder auth token
+        run: npm config delete '//registry.npmjs.org/:_authToken' || true
+
       - name: Install
         run: npm ci
 
